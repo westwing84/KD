@@ -14,8 +14,8 @@ import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 30            # Teacherモデルの学習回数
-EPOCHS_S = 100           # Studentモデルの学習回数
+EPOCHS_T = 50            # Teacherモデルの学習回数
+EPOCHS_S = 200           # Studentモデルの学習回数
 BATCH_SIZE = 128        # バッチサイズ
 VERBOSE = 2             # 学習進捗の表示モード
 optimizer = Adam()      # 最適化アルゴリズム
@@ -43,14 +43,22 @@ idx_split = int(x.shape[0] * (1 - validation_split))
 x_train, x_val = np.split(x, [idx_split])
 y_train, y_val = np.split(y, [idx_split])
 
+'''
 # Trainデータを主データと補助データに分割．ValidationとTestデータは主データのみを残す．
 x_train_main, x_train_aux = np.array_split(x_train, 2, axis=1)
 x_val_main, x_val_aux = np.array_split(x_val, 2, axis=1)
 x_test_main, x_test_aux = np.array_split(x_test, 2, axis=1)
+'''
+x_train_main = x_train
+x_val_main = x_val
+x_test_main = x_test
+x_train_aux = np.zeros(x_train_main.shape)
+x_val_aux = np.zeros(x_val_main.shape)
+x_test_aux = np.zeros(x_test_main.shape)
 input_shape_main = x_train_main.shape[1:]
 input_shape_aux = x_train_aux.shape[1:]
 
-
+'''
 # 入力データの表示
 x_train_tmp = np.concatenate([x_train_main, 0*x_train_aux], axis=1)
 x_test_tmp = np.concatenate([x_test_main, 0*x_test_aux], axis=1)
@@ -69,7 +77,7 @@ for i in range(n):
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
 plt.show()
-
+'''
 
 # MNISTデータセットをtf.data.Datasetに変換
 ds_train = tf.data.Dataset.from_tensor_slices((x_train_main, x_train_aux, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)

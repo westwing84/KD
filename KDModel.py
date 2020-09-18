@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Conv2D, Flatten, Lambda, concatenate
+from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Conv2D, MaxPooling2D, Flatten, Lambda, concatenate
 from tensorflow.keras.losses import CategoricalCrossentropy
 
 
@@ -11,9 +11,10 @@ class Teacher():
         self.num_classes = num_classes
         self.temperature = temperature
 
-        self.conv1 = Conv2D(filters=8, kernel_size=(3, 3), padding='same', name='conv1')
-        self.conv2 = Conv2D(filters=16, kernel_size=(3, 3), padding='same', name='conv2')
-        self.conv3 = Conv2D(filters=32, kernel_size=(3, 3), padding='same', name='conv3')
+        self.conv1 = Conv2D(filters=16, kernel_size=(1, 1), name='conv1')
+        self.conv2 = Conv2D(filters=32, kernel_size=(3, 3), name='conv2')
+        self.conv3 = Conv2D(filters=64, kernel_size=(5, 5), name='conv3')
+        self.maxpool = MaxPooling2D(pool_size=(2, 2))
 
         self.dense1 = Dense(units=512, name='dense1')
         self.dense2 = Dense(units=512, name='dense2')
@@ -43,7 +44,7 @@ class Teacher():
         x = concatenate([inputs_main, inputs_aux], axis=1)
         x = self.relu1(self.batch_norm1(self.conv1(x)))
         x = self.relu2(self.batch_norm2(self.conv2(x)))
-        x = self.relu3(self.batch_norm3(self.conv3(x)))
+        x = self.relu3(self.batch_norm3(self.maxpool(self.conv3(x))))
         x = self.flatten(x)
         x = self.relu4(self.batch_norm4(self.dense1(x)))
         x = self.relu5(self.batch_norm5(self.dense2(x)))
