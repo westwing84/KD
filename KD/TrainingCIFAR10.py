@@ -8,7 +8,7 @@ from tensorflow.keras.metrics import Mean, CategoricalAccuracy, Precision, Recal
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
-# from tensorflow.python.keras.utils.vis_utils import plot_model
+from tensorflow.python.keras.utils.vis_utils import plot_model
 from Utils import LossAccHistory
 import KDModel
 
