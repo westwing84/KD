@@ -125,11 +125,10 @@ class KnowledgeDistillation():
         yt_soft = self.teacher_model([x_main, x_aux])
         ys_soft = self.student_soft_model(x_main)
         ys_hard = self.student_hard_model(x_main)
-        '''
         loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + \
                       self.alpha * (self.temperature ** 2) * loss_object(yt_soft, ys_soft)
-        '''
-        loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + self.alpha * loss_object(yt_soft, ys_soft)
+
+        # loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + self.alpha * loss_object(yt_soft, ys_soft)
         return loss_value
 
     @tf.function

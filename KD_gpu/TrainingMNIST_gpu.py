@@ -28,6 +28,32 @@ def f1_score(precision, recall):
     return (2 * precision * recall) / (precision + recall)
 
 
+# GPUをセット
+gpus = tf.config.experimental.list_physical_devices('GPU')
+print(gpus)
+if gpus:
+    # Create 4 virtual GPU
+    try:
+        i = 0
+        tf.config.experimental.set_visible_devices(gpus[0:-1], 'GPU')
+        for gpu in gpus[0:-1]:
+            tf.config.experimental.set_memory_growth(gpu, True)
+            i += 1
+
+        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPU,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        # Virtual devices must be set before GPUs have been initialized
+        print(e)
+
+cross_tower_ops = tf.distribute.HierarchicalCopyAllReduce(num_packs=3)
+strategy = tf.distribute.MirroredStrategy(cross_device_ops=cross_tower_ops)
+
+# config strategy
+GLOBAL_BATCH_SIZE = BATCH_SIZE * strategy.num_replicas_in_sync
+print(GLOBAL_BATCH_SIZE)
+
+
 # MNISTデータセットの準備
 (x, y), (x_test, y_test) = mnist.load_data()
 y = to_categorical(y, NUM_CLASSES)
@@ -72,9 +98,9 @@ plt.show()
 '''
 
 # MNISTデータセットをtf.data.Datasetに変換
-ds_train = tf.data.Dataset.from_tensor_slices((x_train_main, x_train_aux, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)
-ds_val = tf.data.Dataset.from_tensor_slices((x_val_main, x_val_aux, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE)
-ds_test = tf.data.Dataset.from_tensor_slices((x_test_main, x_test_aux, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE)
+ds_train = tf.data.Dataset.from_tensor_slices((x_train_main, x_train_aux, y_train)).shuffle(x_train.shape[0]).batch(GLOBAL_BATCH_SIZE)
+ds_val = tf.data.Dataset.from_tensor_slices((x_val_main, x_val_aux, y_val)).shuffle(x_val.shape[0]).batch(GLOBAL_BATCH_SIZE)
+ds_test = tf.data.Dataset.from_tensor_slices((x_test_main, x_test_aux, y_test)).shuffle(x_test.shape[0]).batch(GLOBAL_BATCH_SIZE)
 ds = tf.data.Dataset.zip((ds_train, ds_val))
 
 # Teacherモデルの定義
