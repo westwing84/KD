@@ -14,7 +14,7 @@ class Teacher():
         self.conv1 = Conv2D(filters=16, kernel_size=(1, 1), name='conv1')
         self.conv2 = Conv2D(filters=32, kernel_size=(3, 3), name='conv2')
         self.conv3 = Conv2D(filters=64, kernel_size=(5, 5), name='conv3')
-        self.maxpool = MaxPooling2D(pool_size=(2, 2))
+        self.maxpool = MaxPooling2D(pool_size=(2, 2), name='maxpooling1')
 
         self.dense1 = Dense(units=512, name='dense1')
         self.dense2 = Dense(units=512, name='dense2')
@@ -40,8 +40,11 @@ class Teacher():
 
         self.model = None
 
-    def createModel(self, inputs_main, inputs_aux):
-        x = concatenate([inputs_main, inputs_aux], axis=1)
+    def createModel(self, inputs_main, inputs_aux=None):
+        if inputs_aux == None:
+            x = inputs_main
+        else:
+            x = concatenate([inputs_main, inputs_aux], axis=1)
         x = self.relu1(self.batch_norm1(self.conv1(x)))
         x = self.relu2(self.batch_norm2(self.conv2(x)))
         x = self.relu3(self.batch_norm3(self.maxpool(self.conv3(x))))
@@ -49,7 +52,10 @@ class Teacher():
         x = self.relu4(self.batch_norm4(self.dense1(x)))
         x = self.relu5(self.batch_norm5(self.dense2(x)))
         outputs = self.softmax(self.dense3(x))
-        model = Model([inputs_main, inputs_aux], outputs, name='TeacherModel')
+        if inputs_aux == None:
+            model = Model(inputs_main, outputs, name='TeacherModel')
+        else:
+            model = Model([inputs_main, inputs_aux], outputs, name='TeacherModel')
         self.model = model
 
         return model
@@ -120,7 +126,23 @@ class KnowledgeDistillation():
         self.alpha = alpha
 
     @tf.function
-    def loss(self, x_main, x_aux, y_true):
+    def loss(self, x, y_true):
+        loss_object = CategoricalCrossentropy()
+        yt_soft = self.teacher_model(x)
+        ys_soft = self.student_soft_model(x)
+        ys_hard = self.student_hard_model(x)
+        loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + \
+                     self.alpha * (self.temperature ** 2) * loss_object(yt_soft, ys_soft)
+        return loss_value
+
+    @tf.function
+    def grad(self, x, targets):
+        with tf.GradientTape() as tape:
+            loss_value = self.loss(x, targets)
+        return loss_value, tape.gradient(loss_value, self.student_hard_model.trainable_variables)
+
+    @tf.function
+    def loss_mainaux(self, x_main, x_aux, y_true):
         loss_object = CategoricalCrossentropy()
         yt_soft = self.teacher_model([x_main, x_aux])
         ys_soft = self.student_soft_model(x_main)
@@ -132,9 +154,9 @@ class KnowledgeDistillation():
         return loss_value
 
     @tf.function
-    def grad(self, x_main, x_aux, targets):
+    def grad_mainaux(self, x_main, x_aux, targets):
         with tf.GradientTape() as tape:
-            loss_value = self.loss(x_main, x_aux, targets)
+            loss_value = self.loss_mainaux(x_main, x_aux, targets)
         return loss_value, tape.gradient(loss_value, self.student_hard_model.trainable_variables)
 
 
