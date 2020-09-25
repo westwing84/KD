@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Conv2D, MaxPooling2D, Flatten, Lambda, concatenate
+from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Dropout, Conv2D, MaxPooling2D, Flatten, Lambda, concatenate
 from tensorflow.keras.losses import CategoricalCrossentropy
 
 
@@ -34,6 +34,8 @@ class Teacher():
         self.batch_norm4 = BatchNormalization(name='batch_norm4')
         self.batch_norm5 = BatchNormalization(name='batch_norm5')
 
+        self.dropout = Dropout(rate=0.5, name='dropout')
+
         self.flatten = Flatten()
 
         self.divide_T = Lambda(lambda x: x / temperature)
@@ -47,7 +49,8 @@ class Teacher():
             x = concatenate([inputs_main, inputs_aux], axis=1)
         x = self.relu1(self.batch_norm1(self.conv1(x)))
         x = self.relu2(self.batch_norm2(self.conv2(x)))
-        x = self.relu3(self.batch_norm3(self.maxpool(self.conv3(x))))
+        x = self.relu3(self.batch_norm3(self.conv3(x)))
+        x = self.dropout(self.maxpool(x))
         x = self.flatten(x)
         x = self.relu4(self.batch_norm4(self.dense1(x)))
         x = self.relu5(self.batch_norm5(self.dense2(x)))
