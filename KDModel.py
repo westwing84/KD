@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Dropout, Conv2D, MaxPooling2D, Flatten, Lambda, concatenate
+from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Dropout, Conv2D, MaxPooling2D,\
+    GlobalAveragePooling2D, Flatten, Lambda, concatenate
 from tensorflow.keras.losses import CategoricalCrossentropy
 
 
@@ -10,36 +11,6 @@ class Teacher():
     def __init__(self, num_classes, temperature):
         self.num_classes = num_classes
         self.temperature = temperature
-
-        self.conv1 = Conv2D(filters=16, kernel_size=(1, 1), name='conv1')
-        self.conv2 = Conv2D(filters=32, kernel_size=(3, 3), name='conv2')
-        self.conv3 = Conv2D(filters=64, kernel_size=(5, 5), name='conv3')
-        self.maxpool = MaxPooling2D(pool_size=(2, 2), name='maxpooling1')
-
-        self.dense1 = Dense(units=512, name='dense1')
-        self.dense2 = Dense(units=512, name='dense2')
-        self.dense3 = Dense(units=num_classes, name='dense3')
-
-        self.relu1 = Activation('relu', name='relu1')
-        self.relu2 = Activation('relu', name='relu2')
-        self.relu3 = Activation('relu', name='relu3')
-        self.relu4 = Activation('relu', name='relu4')
-        self.relu5 = Activation('relu', name='relu5')
-        self.softmax = Activation('softmax', name='softmax')
-        self.softmax_T = Activation('softmax', name='softmax_T')
-
-        self.batch_norm1 = BatchNormalization(name='batch_norm1')
-        self.batch_norm2 = BatchNormalization(name='batch_norm2')
-        self.batch_norm3 = BatchNormalization(name='batch_norm3')
-        self.batch_norm4 = BatchNormalization(name='batch_norm4')
-        self.batch_norm5 = BatchNormalization(name='batch_norm5')
-
-        self.dropout = Dropout(rate=0.5, name='dropout')
-
-        self.flatten = Flatten()
-
-        self.divide_T = Lambda(lambda x: x / temperature)
-
         self.model = None
 
     def createModel(self, inputs_main, inputs_aux=None):
@@ -47,14 +18,33 @@ class Teacher():
             x = inputs_main
         else:
             x = concatenate([inputs_main, inputs_aux], axis=1)
-        x = self.relu1(self.batch_norm1(self.conv1(x)))
-        x = self.relu2(self.batch_norm2(self.conv2(x)))
-        x = self.relu3(self.batch_norm3(self.conv3(x)))
-        x = self.dropout(self.maxpool(x))
-        x = self.flatten(x)
-        x = self.relu4(self.batch_norm4(self.dense1(x)))
-        x = self.relu5(self.batch_norm5(self.dense2(x)))
-        outputs = self.softmax(self.dense3(x))
+        x = Conv2D(32, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(32, (3, 3), padding='same')(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(32, (3, 3), padding='same', activation='relu')(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
+        x = Dropout(0.25)(x)
+
+        x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(64, (3, 3), padding='same')(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
+        x = Dropout(0.25)(x)
+
+        x = Conv2D(128, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(128, (3, 3), padding='same')(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(128, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(128, (3, 3), padding='same', activation='relu')(x)
+        x = GlobalAveragePooling2D()(x)
+
+        x = Dense(1024, activation='relu')(x)
+        x = Dropout(0.5)(x)
+        x = Dense(1024, activation='relu')(x)
+        x = Dropout(0.5)(x)
+        outputs = Activation('softmax')(Dense(self.num_classes)(x))
+
         if inputs_aux == None:
             model = Model(inputs_main, outputs, name='TeacherModel')
         else:
@@ -67,8 +57,8 @@ class Teacher():
         self.model.layers.pop()
         inputs = self.model.input
         x = self.model.layers[-1].output
-        x = self.divide_T(x)
-        outputs = self.softmax_T(x)
+        x = Lambda(lambda X: X / self.temperature)(x)
+        outputs = Activation('softmax')(x)
         model = Model(inputs, outputs, name='TeacherModel')
 
         return model
@@ -80,39 +70,36 @@ class Students():
     def __init__(self, num_classes, temperature=5):
         self.num_classes = num_classes
         self.temperature = temperature
-
-        self.dense1 = Dense(units=100, name='dense1')
-        self.dense2 = Dense(units=100, name='dense2')
-        self.dense3 = Dense(units=num_classes, name='dense3')
-
-        self.relu1 = Activation('relu', name='relu1')
-        self.relu2 = Activation('relu', name='relu2')
-        self.softmax = Activation('softmax', name='softmax')
-        self.softmax_T = Activation('softmax', name='softmax_T')
-
-        self.batch_norm1 = BatchNormalization(name='batch_norm1')
-        self.batch_norm2 = BatchNormalization(name='batch_norm2')
-
-        self.flatten = Flatten()
-
-        self.divide_T = Lambda(lambda x: x / temperature)
-
         self.logits = None
 
     def createHardModel(self, inputs):
-        x = self.flatten(inputs)
-        x = self.relu1(self.batch_norm1(self.dense1(x)))
-        x = self.relu2(self.batch_norm2(self.dense2(x)))
-        logits = self.dense3(x)
+        x = Conv2D(8, (3, 3), padding='same', activation='relu')(inputs)
+        x = Conv2D(8, (3, 3), padding='same', activation='relu')(x)
+        x = Dropout(0.25)(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
+
+        x = Conv2D(16, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(16, (3, 3), padding='same', activation='relu')(x)
+        x = Dropout(0.25)(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
+
+        x = Conv2D(32, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(32, (3, 3), padding='same', activation='relu')(x)
+        x = GlobalAveragePooling2D()(x)
+
+        x = Dense(128, activation='relu')(x)
+        x = Dropout(0.5)(x)
+        logits = Dense(self.num_classes)(x)
+        outputs = Activation('softmax')(logits)
+
         self.logits = logits
-        outputs = self.softmax(logits)
         hard_model = Model(inputs, outputs, name='StudentHardModel')
 
         return hard_model
 
     def createSoftModel(self, inputs):
-        logits_T = self.divide_T(self.logits)
-        outputs = self.softmax_T(logits_T)
+        logits_T = Lambda(lambda X: X / self.temperature)(self.logits)
+        outputs = Activation('softmax')(logits_T)
         soft_model = Model(inputs, outputs, name='StudentSoftModel')
 
         return soft_model
