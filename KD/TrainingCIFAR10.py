@@ -8,6 +8,7 @@ from tensorflow.keras.metrics import Mean, CategoricalAccuracy, Precision, Recal
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.python.keras.utils.vis_utils import plot_model
 from Utils import LossAccHistory
 import KDModel
@@ -42,6 +43,7 @@ idx_split = int(x.shape[0] * (1 - validation_split))
 x_train, x_val = np.split(x, [idx_split])
 y_train, y_val = np.split(y, [idx_split])
 input_shape = x_train.shape[1:]
+
 
 '''
 # 入力データの表示

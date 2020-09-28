@@ -1,10 +1,10 @@
-# Studentモデルを普通に学習させた場合の検証
+# StudentモデルにCIFAR10を普通に学習させた場合の検証
 
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from tensorflow.keras.layers import Input
-from tensorflow.keras.datasets import mnist
+from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.metrics import Mean, CategoricalAccuracy, Precision, Recall
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
@@ -13,11 +13,11 @@ import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS = 100            # 学習回数
-BATCH_SIZE = 128        # バッチサイズ
+EPOCHS = 300            # 学習回数
+BATCH_SIZE = 512        # バッチサイズ
 VALIDATION_SPLIT = 0.2  # 評価に用いるデータの割合
 VERBOSE = 2             # 学習進捗の表示モード
-optimizer = Adam()      # 最適化アルゴリズム
+optimizer = Adam(learning_rate=0.0005)  # 最適化アルゴリズム
 
 
 # F1-Scoreを求める関数
@@ -25,31 +25,25 @@ def f1_score(precision, recall):
     return (2 * precision * recall) / (precision + recall)
 
 
-# MNISTデータセットの準備
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
+# CIFAR10データセットの準備
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
 y_train = to_categorical(y_train, NUM_CLASSES)
 y_test = to_categorical(y_test, NUM_CLASSES)
 x_train = x_train.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
-x_train = x_train.reshape([-1, 28, 28, 1])
-x_test = x_test.reshape([-1, 28, 28, 1])
+x_train = x_train.reshape([-1, 32, 32, 3])
+x_test = x_test.reshape([-1, 32, 32, 3])
 
 # MNISTのTrain用データをTrainとValidationに分割
 idx_split = int(x_train.shape[0] * (1 - VALIDATION_SPLIT))
 x_train, x_val = np.split(x_train, [idx_split])
 y_train, y_val = np.split(y_train, [idx_split])
-
-# Trainデータを主データと補助データに分割．ValidationとTestデータは主データのみを残す．
-x_train_main, x_train_aux = np.array_split(x_train, 2, axis=1)
-x_val_main, x_val_aux = np.array_split(x_val, 2, axis=1)
-x_test_main, x_test_aux = np.array_split(x_test, 2, axis=1)
-input_shape_main = x_train_main.shape[1:]
-input_shape_aux = x_train_aux.shape[1:]
+input_shape_main = x_train.shape[1:]
 
 # MNISTデータセットをtf.data.Datasetに変換
-ds_train = tf.data.Dataset.from_tensor_slices((x_train_main, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)
-ds_val = tf.data.Dataset.from_tensor_slices((x_val_main, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE)
-ds_test = tf.data.Dataset.from_tensor_slices((x_test_main, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE)
+ds_train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)
+ds_val = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE)
+ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE)
 ds = tf.data.Dataset.zip((ds_train, ds_val))
 
 # Studentモデルの構築

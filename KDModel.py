@@ -18,25 +18,25 @@ class Teacher():
             x = inputs_main
         else:
             x = concatenate([inputs_main, inputs_aux], axis=1)
-        x = Conv2D(32, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(32, (1, 1), padding='same', activation='relu')(x)
         x = Conv2D(32, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(32, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(32, (5, 5), padding='same', activation='relu')(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
-        x = Dropout(0.25)(x)
+        x = Dropout(0.5)(x)
 
-        x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(64, (1, 1), padding='same', activation='relu')(x)
         x = Conv2D(64, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(64, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(64, (5, 5), padding='same', activation='relu')(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
-        x = Dropout(0.25)(x)
+        x = Dropout(0.5)(x)
 
-        x = Conv2D(128, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(128, (1, 1), padding='same', activation='relu')(x)
         x = Conv2D(128, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
         x = Conv2D(128, (3, 3), padding='same', activation='relu')(x)
-        x = Conv2D(128, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(128, (5, 5), padding='same', activation='relu')(x)
         x = GlobalAveragePooling2D()(x)
 
         x = Dense(1024, activation='relu')(x)
@@ -73,17 +73,17 @@ class Students():
         self.logits = None
 
     def createHardModel(self, inputs):
-        x = Conv2D(8, (3, 3), padding='same', activation='relu')(inputs)
+        x = Conv2D(8, (1, 1), padding='same', activation='relu')(inputs)
         x = Conv2D(8, (3, 3), padding='same', activation='relu')(x)
-        x = Dropout(0.25)(x)
+        x = Dropout(0.5)(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
 
+        x = Conv2D(16, (1, 1), padding='same', activation='relu')(x)
         x = Conv2D(16, (3, 3), padding='same', activation='relu')(x)
-        x = Conv2D(16, (3, 3), padding='same', activation='relu')(x)
-        x = Dropout(0.25)(x)
+        x = Dropout(0.5)(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
 
-        x = Conv2D(32, (3, 3), padding='same', activation='relu')(x)
+        x = Conv2D(32, (1, 1), padding='same', activation='relu')(x)
         x = Conv2D(32, (3, 3), padding='same', activation='relu')(x)
         x = GlobalAveragePooling2D()(x)
 
