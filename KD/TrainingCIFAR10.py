@@ -14,10 +14,9 @@ import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 100            # Teacherモデルの学習回数
-EPOCHS_S = 200           # Studentモデルの学習回数
+EPOCHS_T = 150            # Teacherモデルの学習回数
+EPOCHS_S = 300           # Studentモデルの学習回数
 BATCH_SIZE = 512        # バッチサイズ
-VERBOSE = 2             # 学習進捗の表示モード
 optimizer = Adam(learning_rate=0.0005)      # 最適化アルゴリズム
 T = 5                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
@@ -28,7 +27,7 @@ def f1_score(precision, recall):
     return (2 * precision * recall) / (precision + recall)
 
 
-# MNISTデータセットの準備
+# CIFAR10データセットの準備
 (x, y), (x_test, y_test) = cifar10.load_data()
 y = to_categorical(y, NUM_CLASSES)
 y_test = to_categorical(y_test, NUM_CLASSES)
@@ -44,7 +43,7 @@ x_train, x_val = np.split(x, [idx_split])
 y_train, y_val = np.split(y, [idx_split])
 input_shape = x_train.shape[1:]
 
-
+'''
 # 入力データの表示
 n = 10
 plt.figure()
@@ -61,7 +60,7 @@ for i in range(n):
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
 plt.show()
-
+'''
 
 # MNISTデータセットをtf.data.Datasetに変換
 ds_train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)
