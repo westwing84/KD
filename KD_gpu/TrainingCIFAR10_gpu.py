@@ -14,13 +14,13 @@ import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 50            # Teacherモデルの学習回数
-EPOCHS_S = 200           # Studentモデルの学習回数
-BATCH_SIZE = 128        # バッチサイズ
-VERBOSE = 2             # 学習進捗の表示モード
-optimizer = Adam()      # 最適化アルゴリズム
+EPOCHS_T = 100            # Teacherモデルの学習回数
+EPOCHS_S = 500           # Studentモデルの学習回数
+BATCH_SIZE = 512        # バッチサイズ
 T = 5                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
+LR_T = 0.0005           # Teacherモデル学習時の学習率
+LR_S = 0.001            # Studentモデル学習時の学習率
 
 
 # F1-Scoreを求める関数
@@ -28,7 +28,32 @@ def f1_score(precision, recall):
     return (2 * precision * recall) / (precision + recall)
 
 
-# MNISTデータセットの準備
+# set GPU
+gpus = tf.config.experimental.list_physical_devices('GPU')
+print(gpus)
+if gpus:
+    # Create 4 virtual GPU
+    try:
+        i = 0
+        tf.config.experimental.set_visible_devices(gpus[0:-1], 'GPU')
+        for gpu in gpus[0:-1]:
+            tf.config.experimental.set_memory_growth(gpu, True)
+            i += 1
+
+        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPU,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        # Virtual devices must be set before GPUs have been initialized
+        print(e)
+
+cross_tower_ops = tf.distribute.HierarchicalCopyAllReduce(num_packs=3)
+strategy = tf.distribute.MirroredStrategy(cross_device_ops=cross_tower_ops)
+
+# config strategry
+GLOBAL_BATCH_SIZE = BATCH_SIZE * strategy.num_replicas_in_sync
+print(GLOBAL_BATCH_SIZE)
+
+# CIFAR10データセットの準備
 (x, y), (x_test, y_test) = cifar10.load_data()
 y = to_categorical(y, NUM_CLASSES)
 y_test = to_categorical(y_test, NUM_CLASSES)
@@ -42,169 +67,217 @@ validation_split = 0.2
 idx_split = int(x.shape[0] * (1 - validation_split))
 x_train, x_val = np.split(x, [idx_split])
 y_train, y_val = np.split(y, [idx_split])
+input_shape = x_train.shape[1:]
 
-'''
-# Trainデータを主データと補助データに分割．ValidationとTestデータは主データのみを残す．
-x_train_main, x_train_aux = np.array_split(x_train, 2, axis=1)
-x_val_main, x_val_aux = np.array_split(x_val, 2, axis=1)
-x_test_main, x_test_aux = np.array_split(x_test, 2, axis=1)
-'''
-x_train_main = x_train
-x_val_main = x_val
-x_test_main = x_test
-x_train_aux = np.zeros(x_train_main.shape)
-x_val_aux = np.zeros(x_val_main.shape)
-x_test_aux = np.zeros(x_test_main.shape)
-input_shape_main = x_train_main.shape[1:]
-input_shape_aux = x_train_aux.shape[1:]
-
-'''
-# 入力データの表示
-x_train_tmp = np.concatenate([x_train_main, 0*x_train_aux], axis=1)
-x_test_tmp = np.concatenate([x_test_main, 0*x_test_aux], axis=1)
-n = 10
-plt.figure()
-for i in range(n):
-    ax = plt.subplot(2, n, i+1)
-    plt.imshow(x_train_tmp[i].reshape(32, 32, 3))
-    plt.gray()
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-
-    ax = plt.subplot(2, n, n + i + 1)
-    plt.imshow(x_test_tmp[i].reshape(32, 32, 3))
-    plt.gray()
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-plt.show()
-'''
-
-# MNISTデータセットをtf.data.Datasetに変換
-ds_train = tf.data.Dataset.from_tensor_slices((x_train_main, x_train_aux, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)
-ds_val = tf.data.Dataset.from_tensor_slices((x_val_main, x_val_aux, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE)
-ds_test = tf.data.Dataset.from_tensor_slices((x_test_main, x_test_aux, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE)
-ds = tf.data.Dataset.zip((ds_train, ds_val))
-
-# Teacherモデルの定義
-inputs_main = Input(shape=input_shape_main)
-inputs_aux = Input(shape=input_shape_aux)
-teacher = KDModel.Teacher(NUM_CLASSES, T)
-teacher_model = teacher.createModel(inputs_main, inputs_aux)
-
-# Teacherモデルの学習
-training = KDModel.NormalTraining(teacher_model)
-teacher_model.summary()
-# plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
-for epoch in range(1, EPOCHS_T + 1):
-    epoch_loss_avg = Mean()
-    epoch_loss_avg_val = Mean()
-    epoch_accuracy = CategoricalAccuracy()
-    epoch_accuracy_val = CategoricalAccuracy()
-
-    # 各バッチごとに学習
-    for (x_train_main_, x_train_aux_, y_train_), (x_val_main_, x_val_aux_, y_val_) in ds:
-        loss_value, grads = training.grad([x_train_main_, x_train_aux_], y_train_)
-        optimizer.apply_gradients(zip(grads, teacher_model.trainable_variables))
-        loss_value_test = training.loss([x_val_main_, x_val_aux_], y_val_)
-
-        epoch_loss_avg(loss_value)
-        epoch_accuracy(y_train_, teacher_model([x_train_main_, x_train_aux_]))
-        epoch_loss_avg_val(loss_value_test)
-        epoch_accuracy_val(y_val_, teacher_model([x_val_main_, x_val_aux_]))
-
-    # 学習進捗の表示
-    print('Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}'.format(
-        epoch, EPOCHS_T, epoch_loss_avg.result(), epoch_accuracy.result(),
-        epoch_loss_avg_val.result(), epoch_accuracy_val.result()))
+# Batch and shuffle the data
+train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)
+validation_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE)
+test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE)
+# uncertainty
+mc = True
+drop_rate = 0.5
+n_ensemble = 20
 
 
-# Studentモデルの定義
-student = KDModel.Students(NUM_CLASSES, T)
-student_hard_model = student.createHardModel(inputs_main)
-student_soft_model = student.createSoftModel(inputs_main)
+# checkpoint
+checkpoint_prefix = "D:\\usr\\pras\\result\\arxiv\\KnowldegeDistillation\\"
 
-# Studentモデルの学習
-student_hard_model.summary()
-student_soft_model.summary()
-# plot_model(student_soft_model, show_shapes=True, to_file='student_model.png')
-kd = KDModel.KnowledgeDistillation(teacher_model, student_hard_model, student_soft_model, T, ALPHA)
-history_student = LossAccHistory()
-for epoch in range(1, EPOCHS_S + 1):
-    epoch_loss_avg = Mean()
-    epoch_loss_avg_val = Mean()
-    epoch_accuracy = CategoricalAccuracy()
-    epoch_accuracy_val = CategoricalAccuracy()
+# loss
+# ---------------------------Epoch&Loss--------------------------#
+loss_metric = tf.keras.metrics.Mean()
+acc_metric = tf.keras.metrics.Mean()
 
-    # 各バッチごとに学習
-    for (x_train_main_, x_train_aux_, y_train_), (x_val_main_, x_val_aux_, y_val_) in ds:
-        loss_value, grads = kd.grad(x_train_main_, x_train_aux_, y_train_)
-        optimizer.apply_gradients(zip(grads, student_hard_model.trainable_variables))
-        loss_value_test = kd.loss(x_val_main_, x_val_aux_, y_val_)
+test_loss_metric = tf.keras.metrics.Mean()
+test_acc_metric = tf.keras.metrics.Mean()
+# Loss function
+with strategy.scope():
+    # Set reduction to `none` so we can do the reduction afterwards and divide by
 
-        epoch_loss_avg(loss_value)
-        epoch_accuracy(y_train_, student_hard_model(x_train_main_))
-        epoch_loss_avg_val(loss_value_test)
-        epoch_accuracy_val(y_val_, student_hard_model(x_val_main_))
+    # create model
+    inputs = Input(shape=input_shape)
+    teacher = KDModel.Teacher(NUM_CLASSES, T)
+    student = KDModel.Students(NUM_CLASSES, T)
+    model_T = teacher.createModel(inputs)
+    model_S = student.createHardModel(inputs)
 
-    # 学習進捗の表示
-    print('Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}'.format(
-        epoch, EPOCHS_S, epoch_loss_avg.result(), epoch_accuracy.result(),
-        epoch_loss_avg_val.result(), epoch_accuracy_val.result()))
-    # LossとAccuracyの記録(後でグラフにプロットするため)
-    history_student.losses.append(epoch_loss_avg.result())
-    history_student.accuracy.append(epoch_accuracy.result() * 100)
-    history_student.losses_val.append(epoch_loss_avg_val.result())
-    history_student.accuracy_val.append(epoch_accuracy_val.result() * 100)
+    # optimizer
+    optimizer = Adam(learning_rate=LR_T)
 
-# Studentモデルの評価
-score_train = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
-score_val = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
-score_test = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
-ds = tf.data.Dataset.zip((ds_train, ds_val, ds_test))
-for (x_train_main_, x_train_aux_, y_train_), (x_val_main_, x_val_aux_, y_val_), (x_test_main_, x_test_aux_, y_test_) in ds:
-    score_train[0](kd.loss(x_train_main_, x_train_aux_, y_train_))
-    score_val[0](kd.loss(x_val_main_, x_val_aux_, y_val_))
-    score_test[0](kd.loss(x_test_main_, x_test_aux_, y_test_))
-    score_train[1](y_train_, student_hard_model(x_train_main_))
-    score_val[1](y_val_, student_hard_model(x_val_main_))
-    score_test[1](y_test_, student_hard_model(x_test_main_))
-    score_train[2](y_train_, student_hard_model(x_train_main_))
-    score_val[2](y_val_, student_hard_model(x_val_main_))
-    score_test[2](y_test_, student_hard_model(x_test_main_))
-    score_train[3](y_train_, student_hard_model(x_train_main_))
-    score_val[3](y_val_, student_hard_model(x_val_main_))
-    score_test[3](y_test_, student_hard_model(x_test_main_))
-f1_train = f1_score(score_train[2].result(), score_train[3].result())
-f1_val = f1_score(score_val[2].result(), score_val[3].result())
-f1_test = f1_score(score_test[2].result(), score_test[3].result())
+    # checkpoint
+    checkpoint = tf.train.Checkpoint(step=tf.Variable(1), optimizer=optimizer, model=model_T)
+    manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=3)
 
-print('-----------------------------Student Model------------------------------------')
-print('Train - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_train[0].result(), score_train[1].result(), score_train[2].result(), score_train[3].result(), f1_train))
-print('Validation - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_val[0].result(), score_val[1].result(), score_val[2].result(), score_val[3].result(), f1_val))
-print('Test - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_test[0].result(), score_test[1].result(), score_test[2].result(), score_test[3].result(), f1_test))
+    # loss
+    loss = tf.losses.SparseCategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE, from_logits=True)
+    cross_loss = tf.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE, from_logits=True)
+    acc = tf.keras.metrics.SparseCategoricalAccuracy()
 
-# LossとAccuracyをグラフにプロット
-plt.figure()
-plt.subplot(1, 2, 1)
-plt.plot(history_student.accuracy)
-plt.plot(history_student.accuracy_val)
-plt.title('Student Model Accuracy')
-plt.ylabel('Accuracy [%]')
-plt.xlabel('Epoch')
-plt.ylim(0.0, 101.0)
-plt.legend(['Train', 'Validation'])
 
-plt.subplot(1, 2, 2)
-plt.plot(history_student.losses)
-plt.plot(history_student.losses_val)
-plt.title('Student Model Loss')
-plt.ylabel('Loss')
-plt.xlabel('Epoch')
-plt.legend(['Train', 'Validation'])
-plt.tight_layout()
-plt.show()
+    def compute_loss(labels, predictions, global_batch_size):
+        per_example_loss = loss(labels, predictions)
+        return tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_batch_size)
 
+
+    def compute_cross_loss(labels, predictions, global_batch_size):
+        per_example_loss = cross_loss(labels, predictions)
+        return tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_batch_size)
+
+
+    def compute_acc(labels, predictions):
+        return acc(labels, predictions)
+
+with strategy.scope():
+    def train_teacher(inputs):
+        x_train = inputs[0]
+        y_train = inputs[1]
+        with tf.GradientTape() as tape:
+            logits = model_T(x_train)
+            probs = tf.nn.softmax(logits)
+            loss = compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)
+            acc = compute_acc(y_train, probs)
+
+        grads = tape.gradient(loss, model_T.trainable_weights)
+        optimizer.apply_gradients(zip(grads, model_T.trainable_weights))
+
+        loss_metric(loss)
+        acc_metric(acc)
+        return loss
+
+
+    def test_teacher(inputs):
+        x_test = inputs[0]
+        y_test = inputs[1]
+        logits_test = model_T(x_test)
+        probs = tf.nn.softmax(logits_test)
+        test_loss = loss(y_test, logits_test)
+        test_acc = acc(y_test, probs)
+
+        test_loss_metric(test_loss)
+        test_acc_metric(test_acc)
+        return test_loss
+
+
+    def train_student(inputs):
+        x_train = inputs[0]
+        y_train = inputs[1]
+        with tf.GradientTape() as tape:
+            if (mc):
+                probs = []
+                for i in range(n_ensemble):
+                    probs.append(tf.expand_dims(tf.nn.softmax(model_T(x_train, training=True) / T), 0))
+                probs_all_test = tf.concat(probs, axis=0)
+                probs_mean = tf.reduce_mean(probs, 0)
+                uncertainty = tf.reduce_mean(tf.reduce_sum((probs_all_test - probs_mean) ** 2, -1), 0)
+                # uncertainty = tf.reduce_sum(tf.reduce_mean((probs_all_test - probs_mean) ** 2, 0), -1)
+                logits = model_S(x_train)
+                probs = tf.nn.softmax(logits)
+                loss = (ALPHA * compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)) + (
+                        (uncertainty) * compute_cross_loss(probs_mean[0], logits / T, GLOBAL_BATCH_SIZE))
+
+            else:
+                teacher_pred = tf.nn.softmax(model_T(x_train) / T)
+                logits = model_S(x_train)
+                probs = tf.nn.softmax(logits)
+                loss = (ALPHA * compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)) + (
+                            (1 - ALPHA) * compute_cross_loss(teacher_pred, logits / T, GLOBAL_BATCH_SIZE))
+            acc = compute_acc(y_train, probs)
+
+        grads = tape.gradient(loss, model_S.trainable_weights)
+        optimizer.apply_gradients(zip(grads, model_S.trainable_weights))
+
+        loss_metric(loss)
+        acc_metric(acc)
+        return loss
+
+
+    def test_student(inputs):
+        x_test = inputs[0]
+        y_test = inputs[1]
+        logits_test = model_S(x_test)
+        probs = tf.nn.softmax(logits_test)
+        test_loss = loss(y_test, logits_test)
+        test_acc = acc(y_test, probs)
+
+        test_loss_metric(test_loss)
+        test_acc_metric(test_acc)
+
+        return test_loss
+
+with strategy.scope():
+    # `experimental_run_v2` replicates the provided computation and runs it
+    # with the distributed input.
+    @tf.function
+    def distributed_train_teacher(dataset_inputs):
+        per_replica_losses = strategy.run(train_teacher,
+                                          args=(dataset_inputs,))
+        return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
+                               axis=None)
+
+
+    @tf.function
+    def distributed_test_teacher(dataset_inputs):
+        return strategy.run(test_teacher, args=(dataset_inputs,))
+
+
+    @tf.function
+    def distributed_train_student(dataset_inputs):
+        per_replica_losses = strategy.run(train_student,
+                                          args=(dataset_inputs,))
+        return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
+                               axis=None)
+
+
+    @tf.function
+    def distributed_test_student(dataset_inputs):
+        return strategy.run(test_student, args=(dataset_inputs,))
+
+
+    # for epoch in range(EPOCHS_T):
+    #     # TRAIN LOOP
+    #     total_loss = 0.0
+    #     num_batches = 0
+    #     for step, train in enumerate(train_dataset):
+    #         total_loss = distributed_train_teacher(train)
+    #         #print(total_loss)
+    #
+    #     # TEST LOOP
+    #     for step_test, test in enumerate(test_dataset):
+    #         distributed_test_teacher(test)
+    #
+    #
+    #     template = ("Epoch {}, Loss: {}, ACC: {}, Test Loss: {}, "
+    #                         "Test ACC: {}")
+    #     print(template.format(epoch + 1, loss_metric.result().numpy(), acc_metric.result().numpy(),
+    #                                   test_loss_metric.result().numpy(), test_acc_metric.result().numpy()))
+    #
+    #     loss_metric.reset_states()
+    #     acc_metric.reset_states()
+    #     test_loss_metric.reset_states()
+    #     test_acc_metric.reset_states()
+    #
+    # manager.save()
+
+    print("--------------------Finish Training Teacher--------------------------")
+    checkpoint.restore(manager.latest_checkpoint)
+    for epoch in range(EPOCHS_S):
+        # TRAIN LOOP
+        total_loss = 0.0
+        num_batches = 0
+        for step, train in enumerate(train_dataset):
+            total_loss = distributed_train_student(train)
+            # print(total_loss)
+
+        # TEST LOOP
+        for step_test, test in enumerate(test_dataset):
+            distributed_test_student(test)
+
+        template = ("Epoch {}, Loss: {}, ACC: {}, Test Loss: {}, "
+                    "Test ACC: {}")
+        print(template.format(epoch + 1, loss_metric.result().numpy(), acc_metric.result().numpy(),
+                              test_loss_metric.result().numpy(), test_acc_metric.result().numpy()))
+
+        loss_metric.reset_states()
+        acc_metric.reset_states()
+        test_loss_metric.reset_states()
+        test_acc_metric.reset_states()
 

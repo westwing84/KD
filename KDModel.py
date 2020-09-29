@@ -8,7 +8,7 @@ from tensorflow.keras.losses import CategoricalCrossentropy
 # Teacherのモデル
 class Teacher():
 
-    def __init__(self, num_classes, temperature):
+    def __init__(self, num_classes, temperature=5):
         self.num_classes = num_classes
         self.temperature = temperature
         self.model = None

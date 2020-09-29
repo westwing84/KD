@@ -20,6 +20,8 @@ EPOCHS_S = 500           # Studentモデルの学習回数
 BATCH_SIZE = 512        # バッチサイズ
 T = 5                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
+LR_T = 0.0005           # Teacherモデル学習時の学習率
+LR_S = 0.001            # Studentモデル学習時の学習率
 
 
 # F1-Scoreを求める関数
@@ -75,7 +77,7 @@ teacher = KDModel.Teacher(NUM_CLASSES, T)
 teacher_model = teacher.createModel(inputs)
 
 # Teacherモデルの学習
-optimizer = Adam(learning_rate=0.0005)      # 最適化アルゴリズム
+optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
 training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
 # plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
@@ -108,7 +110,7 @@ student_hard_model = student.createHardModel(inputs)
 student_soft_model = student.createSoftModel(inputs)
 
 # Studentモデルの学習
-optimizer = Adam(learning_rate=0.001)      # 最適化アルゴリズム
+optimizer = Adam(learning_rate=LR_S)      # 最適化アルゴリズム
 student_hard_model.summary()
 student_soft_model.summary()
 # plot_model(student_soft_model, show_shapes=True, to_file='student_model.png')
