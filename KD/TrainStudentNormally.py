@@ -17,7 +17,7 @@ EPOCHS = 300            # 学習回数
 BATCH_SIZE = 512        # バッチサイズ
 VALIDATION_SPLIT = 0.2  # 評価に用いるデータの割合
 VERBOSE = 2             # 学習進捗の表示モード
-optimizer = Adam(learning_rate=0.0005)  # 最適化アルゴリズム
+optimizer = Adam(learning_rate=0.001)  # 最適化アルゴリズム
 
 
 # F1-Scoreを求める関数
