@@ -13,7 +13,7 @@ import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS = 300            # 学習回数
+EPOCHS = 500            # 学習回数
 BATCH_SIZE = 512        # バッチサイズ
 VALIDATION_SPLIT = 0.2  # 評価に用いるデータの割合
 VERBOSE = 2             # 学習進捗の表示モード
@@ -38,7 +38,7 @@ x_test = x_test.reshape([-1, 32, 32, 3])
 idx_split = int(x_train.shape[0] * (1 - VALIDATION_SPLIT))
 x_train, x_val = np.split(x_train, [idx_split])
 y_train, y_val = np.split(y_train, [idx_split])
-input_shape_main = x_train.shape[1:]
+input_shape = x_train.shape[1:]
 
 # MNISTデータセットをtf.data.Datasetに変換
 ds_train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)
@@ -47,9 +47,9 @@ ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.sh
 ds = tf.data.Dataset.zip((ds_train, ds_val))
 
 # Studentモデルの構築
-inputs = Input(shape=input_shape_main)
+inputs = Input(shape=input_shape)
 student = KDModel.Students(NUM_CLASSES)
-student_model = student.createHardModel(inputs)
+student_model = student.createModel(inputs)
 
 # 学習
 training = KDModel.NormalTraining(student_model)
@@ -68,9 +68,9 @@ for epoch in range(1, EPOCHS + 1):
         loss_value_test = training.loss(x_val_, y_val_)
 
         epoch_loss_avg(loss_value)
-        epoch_accuracy(y_train_, student_model(x_train_))
+        epoch_accuracy(y_train_, tf.nn.softmax(student_model(x_train_)))
         epoch_loss_avg_val(loss_value_test)
-        epoch_accuracy_val(y_val_, student_model(x_val_))
+        epoch_accuracy_val(y_val_, tf.nn.softmax(student_model(x_val_)))
 
     # 学習進捗の表示
     print('Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}'.format(
@@ -88,18 +88,21 @@ score_val = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
 score_test = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
 ds = tf.data.Dataset.zip((ds_train, ds_val, ds_test))
 for (x_train_, y_train_), (x_val_, y_val_), (x_test_, y_test_) in ds:
+    probs_train = tf.nn.softmax(student_model(x_train_))
+    probs_val = tf.nn.softmax(student_model(x_val_))
+    probs_test = tf.nn.softmax(student_model(x_test_))
     score_train[0](training.loss(x_train_, y_train_))
     score_val[0](training.loss(x_val_, y_val_))
     score_test[0](training.loss(x_test_, y_test_))
-    score_train[1](y_train_, student_model(x_train_))
-    score_val[1](y_val_, student_model(x_val_))
-    score_test[1](y_test_, student_model(x_test_))
-    score_train[2](y_train_, student_model(x_train_))
-    score_val[2](y_val_, student_model(x_val_))
-    score_test[2](y_test_, student_model(x_test_))
-    score_train[3](y_train_, student_model(x_train_))
-    score_val[3](y_val_, student_model(x_val_))
-    score_test[3](y_test_, student_model(x_test_))
+    score_train[1](y_train_, probs_train)
+    score_val[1](y_val_, probs_val)
+    score_test[1](y_test_, probs_test)
+    score_train[2](y_train_, probs_train)
+    score_val[2](y_val_, probs_val)
+    score_test[2](y_test_, probs_test)
+    score_train[3](y_train_, probs_train)
+    score_val[3](y_val_, probs_val)
+    score_test[3](y_test_, probs_test)
 f1_train = f1_score(score_train[2].result(), score_train[3].result())
 f1_val = f1_score(score_val[2].result(), score_val[3].result())
 f1_test = f1_score(score_test[2].result(), score_test[3].result())

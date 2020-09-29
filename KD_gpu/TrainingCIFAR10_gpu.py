@@ -161,7 +161,7 @@ with strategy.scope():
         x_train = inputs[0]
         y_train = inputs[1]
         with tf.GradientTape() as tape:
-            if (mc):
+            if mc:
                 probs = []
                 for i in range(n_ensemble):
                     probs.append(tf.expand_dims(tf.nn.softmax(model_T(x_train, training=True) / T), 0))

@@ -11,7 +11,6 @@ class Teacher():
     def __init__(self, num_classes, temperature=5):
         self.num_classes = num_classes
         self.temperature = temperature
-        self.model = None
 
     def createModel(self, inputs_main, inputs_aux=None):
         if inputs_aux == None:
@@ -43,23 +42,12 @@ class Teacher():
         x = Dropout(0.5)(x)
         x = Dense(1024, activation='relu')(x)
         x = Dropout(0.5)(x)
-        outputs = Activation('softmax')(Dense(self.num_classes)(x))
+        logits = Dense(self.num_classes)(x)
 
         if inputs_aux == None:
-            model = Model(inputs_main, outputs, name='TeacherModel')
+            model = Model(inputs_main, logits, name='TeacherModel')
         else:
-            model = Model([inputs_main, inputs_aux], outputs, name='TeacherModel')
-        self.model = model
-
-        return model
-
-    def recreateModel(self):
-        self.model.layers.pop()
-        inputs = self.model.input
-        x = self.model.layers[-1].output
-        x = Lambda(lambda X: X / self.temperature)(x)
-        outputs = Activation('softmax')(x)
-        model = Model(inputs, outputs, name='TeacherModel')
+            model = Model([inputs_main, inputs_aux], logits, name='TeacherModel')
 
         return model
 
@@ -70,9 +58,8 @@ class Students():
     def __init__(self, num_classes, temperature=5):
         self.num_classes = num_classes
         self.temperature = temperature
-        self.logits = None
 
-    def createHardModel(self, inputs):
+    def createModel(self, inputs):
         x = Conv2D(8, (1, 1), padding='same', activation='relu')(inputs)
         x = Conv2D(8, (3, 3), padding='same', activation='relu')(x)
         x = Dropout(0.5)(x)
@@ -90,37 +77,27 @@ class Students():
         x = Dense(128, activation='relu')(x)
         x = Dropout(0.5)(x)
         logits = Dense(self.num_classes)(x)
-        outputs = Activation('softmax')(logits)
 
-        self.logits = logits
-        hard_model = Model(inputs, outputs, name='StudentHardModel')
+        model = Model(inputs, logits, name='StudentModel')
 
-        return hard_model
-
-    def createSoftModel(self, inputs):
-        logits_T = Lambda(lambda X: X / self.temperature)(self.logits)
-        outputs = Activation('softmax')(logits_T)
-        soft_model = Model(inputs, outputs, name='StudentSoftModel')
-
-        return soft_model
+        return model
 
 
 # Knowledge DistillationのLossおよび勾配計算の定義
 class KnowledgeDistillation():
 
-    def __init__(self, teacher_model, student_hard_model, student_soft_model, temperature, alpha):
+    def __init__(self, teacher_model, student_model, temperature, alpha):
         self.teacher_model = teacher_model
-        self.student_hard_model = student_hard_model
-        self.student_soft_model = student_soft_model
+        self.student_model = student_model
         self.temperature = temperature
         self.alpha = alpha
 
     @tf.function
     def loss(self, x, y_true):
         loss_object = CategoricalCrossentropy()
-        yt_soft = self.teacher_model(x)
-        ys_soft = self.student_soft_model(x)
-        ys_hard = self.student_hard_model(x)
+        yt_soft = tf.nn.softmax(self.teacher_model(x) / self.temperature)
+        ys_soft = tf.nn.softmax(self.student_model(x) / self.temperature)
+        ys_hard = tf.nn.softmax(self.student_model(x))
         loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + \
                      self.alpha * loss_object(yt_soft, ys_soft)
         return loss_value
@@ -129,14 +106,14 @@ class KnowledgeDistillation():
     def grad(self, x, targets):
         with tf.GradientTape() as tape:
             loss_value = self.loss(x, targets)
-        return loss_value, tape.gradient(loss_value, self.student_hard_model.trainable_variables)
+        return loss_value, tape.gradient(loss_value, self.student_model.trainable_variables)
 
     @tf.function
     def loss_mainaux(self, x_main, x_aux, y_true):
         loss_object = CategoricalCrossentropy()
-        yt_soft = self.teacher_model([x_main, x_aux])
-        ys_soft = self.student_soft_model(x_main)
-        ys_hard = self.student_hard_model(x_main)
+        yt_soft = tf.nn.softmax(self.teacher_model([x_main, x_aux]) / self.temperature)
+        ys_soft = tf.nn.softmax(self.student_model(x_main) / self.temperature)
+        ys_hard = tf.nn.softmax(self.student_model(x_main))
         loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + \
                       self.alpha * (self.temperature ** 2) * loss_object(yt_soft, ys_soft)
 
@@ -147,7 +124,7 @@ class KnowledgeDistillation():
     def grad_mainaux(self, x_main, x_aux, targets):
         with tf.GradientTape() as tape:
             loss_value = self.loss_mainaux(x_main, x_aux, targets)
-        return loss_value, tape.gradient(loss_value, self.student_hard_model.trainable_variables)
+        return loss_value, tape.gradient(loss_value, self.student_model.trainable_variables)
 
 
 # 通常の学習のためのLoss, Grad
@@ -158,7 +135,7 @@ class NormalTraining():
     @tf.function
     def loss(self, x, y_true):
         loss_object = CategoricalCrossentropy()
-        y_pred = self.model(x)
+        y_pred = tf.nn.softmax(self.model(x))
         return loss_object(y_true=y_true, y_pred=y_pred)
 
     @tf.function
