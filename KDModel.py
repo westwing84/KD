@@ -17,31 +17,33 @@ class Teacher():
             x = inputs_main
         else:
             x = concatenate([inputs_main, inputs_aux], axis=1)
-        x = Conv2D(32, (1, 1), padding='same', activation='relu')(x)
-        x = Conv2D(32, (3, 3), padding='same')(x)
+
+        x = Conv2D(32, (1, 1))(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(32, (5, 5), padding='same', activation='relu')(x)
+        x = Conv2D(32, (3, 3))(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(32, (5, 5))(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Dropout(0.5)(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
-        x = Dropout(0.5)(x)
 
-        x = Conv2D(64, (1, 1), padding='same', activation='relu')(x)
-        x = Conv2D(64, (3, 3), padding='same')(x)
+        x = Conv2D(64, (1, 1))(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(64, (5, 5), padding='same', activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
-        x = Dropout(0.5)(x)
-
-        x = Conv2D(128, (1, 1), padding='same', activation='relu')(x)
-        x = Conv2D(128, (3, 3), padding='same')(x)
+        x = Conv2D(64, (3, 3))(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(128, (3, 3), padding='same', activation='relu')(x)
-        x = Conv2D(128, (5, 5), padding='same', activation='relu')(x)
-        x = GlobalAveragePooling2D()(x)
+        x = Conv2D(64, (5, 5))(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Dropout(0.5)(x)
 
-        x = Dense(1024, activation='relu')(x)
+        x = Conv2D(128, (1, 1))(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(128, (3, 3))(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(128, (5, 5))(x)
+        x = Activation('relu')(BatchNormalization()(x))
         x = Dropout(0.5)(x)
-        x = Dense(1024, activation='relu')(x)
-        x = Dropout(0.5)(x)
+
+        x = Flatten()(x)
         logits = Dense(self.num_classes)(x)
 
         if inputs_aux == None:
@@ -60,24 +62,20 @@ class Students():
         self.temperature = temperature
 
     def createModel(self, inputs):
-        x = Conv2D(8, (1, 1), padding='same')(inputs)
+        x = Conv2D(8, (1, 1))(inputs)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(8, (3, 3), padding='same', activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
-        x = Dropout(0.5)(x)
-
-        x = Conv2D(16, (1, 1), padding='same')(x)
+        x = Conv2D(8, (3, 3))(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(16, (3, 3), padding='same', activation='relu')(x)
+        x = Dropout(0.5)(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
+
+        x = Conv2D(16, (1, 1))(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(16, (3, 3))(x)
+        x = Activation('relu')(BatchNormalization()(x))
         x = Dropout(0.5)(x)
 
-        x = Conv2D(32, (1, 1), padding='same', activation='relu')(x)
-        x = Conv2D(32, (3, 3), padding='same', activation='relu')(x)
-        x = GlobalAveragePooling2D()(x)
-
-        x = Dense(128, activation='relu')(x)
-        x = Dropout(0.5)(x)
+        x = Flatten()(x)
         logits = Dense(self.num_classes)(x)
 
         model = Model(inputs, logits, name='StudentModel')
@@ -101,7 +99,7 @@ class KnowledgeDistillation():
         ys_soft = tf.nn.softmax(self.student_model(x) / self.temperature)
         ys_hard = tf.nn.softmax(self.student_model(x))
         loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + \
-                     self.alpha * (self.temperature ** 2) * loss_object(yt_soft, ys_soft)
+                     self.alpha * loss_object(yt_soft, ys_soft)
         return loss_value
 
     @tf.function
