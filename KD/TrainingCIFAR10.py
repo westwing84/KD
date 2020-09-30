@@ -15,7 +15,7 @@ import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 200            # Teacherモデルの学習回数
+EPOCHS_T = 100            # Teacherモデルの学習回数
 EPOCHS_S = 1000           # Studentモデルの学習回数
 BATCH_SIZE = 512        # バッチサイズ
 T = 5                   # 温度付きソフトマックスの温度
@@ -80,7 +80,7 @@ teacher_model = teacher.createModel(inputs)
 optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
 training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
-plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
+# plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
 history_teacher = LossAccHistory()
 for epoch in range(1, EPOCHS_T + 1):
     epoch_loss_avg = Mean()
@@ -117,7 +117,7 @@ student_model = student.createModel(inputs)
 # Studentモデルの学習
 optimizer = Adam(learning_rate=LR_S)      # 最適化アルゴリズム
 student_model.summary()
-plot_model(student_model, show_shapes=True, to_file='student_model.png')
+# plot_model(student_model, show_shapes=True, to_file='student_model.png')
 kd = KDModel.KnowledgeDistillation(teacher_model, student_model, T, ALPHA)
 history_student = LossAccHistory()
 for epoch in range(1, EPOCHS_S + 1):

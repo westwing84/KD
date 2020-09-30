@@ -62,16 +62,16 @@ class Students():
         self.temperature = temperature
 
     def createModel(self, inputs):
-        x = Conv2D(8, (1, 1))(inputs)
+        x = Conv2D(8, (3, 3))(inputs)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(8, (3, 3))(x)
+        x = Conv2D(8, (5, 5))(x)
         x = Activation('relu')(BatchNormalization()(x))
         x = Dropout(0.5)(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
 
-        x = Conv2D(16, (1, 1))(x)
-        x = Activation('relu')(BatchNormalization()(x))
         x = Conv2D(16, (3, 3))(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(16, (5, 5))(x)
         x = Activation('relu')(BatchNormalization()(x))
         x = Dropout(0.5)(x)
 
