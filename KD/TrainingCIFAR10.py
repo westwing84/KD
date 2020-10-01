@@ -17,10 +17,9 @@ import KDModel
 NUM_CLASSES = 10        # 分類するクラス数
 EPOCHS_T = 200            # Teacherモデルの学習回数
 EPOCHS_S = 1000           # Studentモデルの学習回数
-BATCH_SIZE = 512        # バッチサイズ
+BATCH_SIZE = 256        # バッチサイズ
 T = 5                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
-LR_T = 0.0005           # Teacherモデル学習時の学習率
 LR_S = 0.001            # Studentモデル学習時の学習率
 
 
@@ -77,7 +76,8 @@ teacher = KDModel.Teacher(NUM_CLASSES, T)
 teacher_model = teacher.createModel(inputs)
 
 # Teacherモデルの学習
-optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
+lr_t = 0.001
+optimizer = Adam(learning_rate=lr_t)      # 最適化アルゴリズム
 training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
 plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
@@ -87,6 +87,13 @@ for epoch in range(1, EPOCHS_T + 1):
     epoch_loss_avg_val = Mean()
     epoch_accuracy = CategoricalAccuracy()
     epoch_accuracy_val = CategoricalAccuracy()
+    # 学習率の減衰
+    if epoch == 100:
+        lr_t /= 5
+        optimizer = Adam(learning_rate=lr_t)
+    if epoch == 150:
+        lr_t /= 2
+        optimizer = Adam(learning_rate=lr_t)
 
     # 各バッチごとに学習
     for (x_train_, y_train_), (x_val_, y_val_) in ds:

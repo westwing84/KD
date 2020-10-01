@@ -100,9 +100,9 @@ for epoch in range(1, EPOCHS_T + 1):
         loss_value_test = training.loss([x_val_main_, x_val_aux_], y_val_)
 
         epoch_loss_avg(loss_value)
-        epoch_accuracy(y_train_, teacher_model([x_train_main_, x_train_aux_]))
+        epoch_accuracy(y_train_, tf.nn.softmax(teacher_model([x_train_main_, x_train_aux_])))
         epoch_loss_avg_val(loss_value_test)
-        epoch_accuracy_val(y_val_, teacher_model([x_val_main_, x_val_aux_]))
+        epoch_accuracy_val(y_val_, tf.nn.softmax(teacher_model([x_val_main_, x_val_aux_])))
 
     # 学習進捗の表示
     print('Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}'.format(
@@ -112,14 +112,12 @@ for epoch in range(1, EPOCHS_T + 1):
 
 # Studentモデルの定義
 student = KDModel.Students(NUM_CLASSES, T)
-student_hard_model = student.createHardModel(inputs_main)
-student_soft_model = student.createSoftModel(inputs_main)
+student_model = student.createModel(inputs_main)
 
 # Studentモデルの学習
-student_hard_model.summary()
-student_soft_model.summary()
+student_model.summary()
 # plot_model(student_soft_model, show_shapes=True, to_file='student_model.png')
-kd = KDModel.KnowledgeDistillation(teacher_model, student_hard_model, student_soft_model, T, ALPHA)
+kd = KDModel.KnowledgeDistillation(teacher_model, student_model, T, ALPHA)
 history_student = LossAccHistory()
 for epoch in range(1, EPOCHS_S + 1):
     epoch_loss_avg = Mean()
@@ -129,14 +127,14 @@ for epoch in range(1, EPOCHS_S + 1):
 
     # 各バッチごとに学習
     for (x_train_main_, x_train_aux_, y_train_), (x_val_main_, x_val_aux_, y_val_) in ds:
-        loss_value, grads = kd.grad(x_train_main_, x_train_aux_, y_train_)
-        optimizer.apply_gradients(zip(grads, student_hard_model.trainable_variables))
-        loss_value_test = kd.loss(x_val_main_, x_val_aux_, y_val_)
+        loss_value, grads = kd.grad_mainaux(x_train_main_, x_train_aux_, y_train_)
+        optimizer.apply_gradients(zip(grads, student_model.trainable_variables))
+        loss_value_test = kd.loss_mainaux(x_val_main_, x_val_aux_, y_val_)
 
         epoch_loss_avg(loss_value)
-        epoch_accuracy(y_train_, student_hard_model(x_train_main_))
+        epoch_accuracy(y_train_, tf.nn.softmax(student_model(x_train_main_)))
         epoch_loss_avg_val(loss_value_test)
-        epoch_accuracy_val(y_val_, student_hard_model(x_val_main_))
+        epoch_accuracy_val(y_val_, tf.nn.softmax(student_model(x_val_main_)))
 
     # 学習進捗の表示
     print('Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}'.format(
@@ -154,18 +152,21 @@ score_val = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
 score_test = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
 ds = tf.data.Dataset.zip((ds_train, ds_val, ds_test))
 for (x_train_main_, x_train_aux_, y_train_), (x_val_main_, x_val_aux_, y_val_), (x_test_main_, x_test_aux_, y_test_) in ds:
-    score_train[0](kd.loss(x_train_main_, x_train_aux_, y_train_))
-    score_val[0](kd.loss(x_val_main_, x_val_aux_, y_val_))
-    score_test[0](kd.loss(x_test_main_, x_test_aux_, y_test_))
-    score_train[1](y_train_, student_hard_model(x_train_main_))
-    score_val[1](y_val_, student_hard_model(x_val_main_))
-    score_test[1](y_test_, student_hard_model(x_test_main_))
-    score_train[2](y_train_, student_hard_model(x_train_main_))
-    score_val[2](y_val_, student_hard_model(x_val_main_))
-    score_test[2](y_test_, student_hard_model(x_test_main_))
-    score_train[3](y_train_, student_hard_model(x_train_main_))
-    score_val[3](y_val_, student_hard_model(x_val_main_))
-    score_test[3](y_test_, student_hard_model(x_test_main_))
+    probs_train = tf.nn.softmax(student_model(x_train_main_))
+    probs_val = tf.nn.softmax(student_model(x_val_main_))
+    probs_test = tf.nn.softmax(student_model(x_test_main_))
+    score_train[0](kd.loss_mainaux(x_train_main_, x_train_aux_, y_train_))
+    score_val[0](kd.loss_mainaux(x_val_main_, x_val_aux_, y_val_))
+    score_test[0](kd.loss_mainaux(x_test_main_, x_test_aux_, y_test_))
+    score_train[1](y_train_, probs_train)
+    score_val[1](y_val_, probs_val)
+    score_test[1](y_test_, probs_test)
+    score_train[2](y_train_, probs_train)
+    score_val[2](y_val_, probs_val)
+    score_test[2](y_test_, probs_test)
+    score_train[3](y_train_, probs_train)
+    score_val[3](y_val_, probs_val)
+    score_test[3](y_test_, probs_test)
 f1_train = f1_score(score_train[2].result(), score_train[3].result())
 f1_val = f1_score(score_val[2].result(), score_val[3].result())
 f1_test = f1_score(score_test[2].result(), score_test[3].result())
