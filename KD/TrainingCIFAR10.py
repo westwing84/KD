@@ -15,10 +15,10 @@ import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 200            # Teacherモデルの学習回数
+EPOCHS_T = 100            # Teacherモデルの学習回数
 EPOCHS_S = 1000           # Studentモデルの学習回数
 BATCH_SIZE = 256        # バッチサイズ
-T = 5                   # 温度付きソフトマックスの温度
+T = 2                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
 LR_S = 0.001            # Studentモデル学習時の学習率
 
@@ -88,12 +88,14 @@ for epoch in range(1, EPOCHS_T + 1):
     epoch_accuracy = CategoricalAccuracy()
     epoch_accuracy_val = CategoricalAccuracy()
     # 学習率の減衰
-    if epoch == 100:
-        lr_t /= 5
-        optimizer = Adam(learning_rate=lr_t)
-    if epoch == 150:
+    if epoch == 50:
         lr_t /= 2
         optimizer = Adam(learning_rate=lr_t)
+        print('Learning Rate:', lr_t)
+    if epoch == 90:
+        lr_t /= 2
+        optimizer = Adam(learning_rate=lr_t)
+        print('Learning Rate:', lr_t)
 
     # 各バッチごとに学習
     for (x_train_, y_train_), (x_val_, y_val_) in ds:
