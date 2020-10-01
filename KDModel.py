@@ -18,30 +18,26 @@ class Teacher():
         else:
             x = concatenate([inputs_main, inputs_aux], axis=1)
 
-        x = Conv2D(32, (1, 1))(x)
+        x = Conv2D(32, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(32, (3, 3))(x)
+        x = Conv2D(32, (5, 5), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(32, (5, 5))(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.5)(x)
+        x = Dropout(0.25)(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
 
-        x = Conv2D(64, (1, 1))(x)
+        x = Conv2D(64, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(64, (3, 3))(x)
+        x = Conv2D(64, (5, 5), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(64, (5, 5))(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.5)(x)
+        x = Dropout(0.25)(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
 
-        x = Conv2D(128, (1, 1))(x)
+        x = Conv2D(128, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(128, (3, 3))(x)
+        x = Conv2D(128, (5, 5), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(128, (5, 5))(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.5)(x)
+        x = Dropout(0.25)(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
 
         x = Flatten()(x)
         logits = Dense(self.num_classes)(x)
@@ -62,18 +58,19 @@ class Students():
         self.temperature = temperature
 
     def createModel(self, inputs):
-        x = Conv2D(8, (3, 3))(inputs)
+        x = Conv2D(8, (3, 3), padding='same')(inputs)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(8, (5, 5))(x)
+        x = Conv2D(8, (5, 5), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.5)(x)
+        x = Dropout(0.25)(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
 
-        x = Conv2D(16, (3, 3))(x)
+        x = Conv2D(16, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(16, (5, 5))(x)
+        x = Conv2D(16, (5, 5), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.5)(x)
+        x = Dropout(0.25)(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
 
         x = Flatten()(x)
         logits = Dense(self.num_classes)(x)
@@ -94,12 +91,11 @@ class KnowledgeDistillation():
 
     @tf.function
     def loss(self, x, y_true):
-        loss_object = CategoricalCrossentropy()
-        yt_soft = tf.nn.softmax(self.teacher_model(x) / self.temperature)
-        ys_soft = tf.nn.softmax(self.student_model(x) / self.temperature)
-        ys_hard = tf.nn.softmax(self.student_model(x))
-        loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + \
-                     self.alpha * loss_object(yt_soft, ys_soft)
+        loss_object = CategoricalCrossentropy(from_logits=True)
+        teacher_pred = tf.nn.softmax(self.teacher_model(x) / self.temperature)
+        logits = self.student_model(x)
+        loss_value = (1 - self.alpha) * loss_object(y_true, logits) + \
+                     self.alpha * loss_object(teacher_pred, logits / self.temperature)
         return loss_value
 
     @tf.function
@@ -110,14 +106,11 @@ class KnowledgeDistillation():
 
     @tf.function
     def loss_mainaux(self, x_main, x_aux, y_true):
-        loss_object = CategoricalCrossentropy()
-        yt_soft = tf.nn.softmax(self.teacher_model([x_main, x_aux]) / self.temperature)
-        ys_soft = tf.nn.softmax(self.student_model(x_main) / self.temperature)
-        ys_hard = tf.nn.softmax(self.student_model(x_main))
-        loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + \
-                      self.alpha * loss_object(yt_soft, ys_soft)
-
-        # loss_value = (1 - self.alpha) * loss_object(y_true, ys_hard) + self.alpha * loss_object(yt_soft, ys_soft)
+        loss_object = CategoricalCrossentropy(from_logits=True)
+        teacher_pred = tf.nn.softmax(self.teacher_model([x_main, x_aux]))
+        logits = self.student_model(x_main)
+        loss_value = (1 - self.alpha) * loss_object(y_true, logits) + \
+                      self.alpha * loss_object(teacher_pred, logits / self.temperature)
         return loss_value
 
     @tf.function
@@ -134,9 +127,9 @@ class NormalTraining():
 
     @tf.function
     def loss(self, x, y_true):
-        loss_object = CategoricalCrossentropy()
-        y_pred = tf.nn.softmax(self.model(x))
-        return loss_object(y_true=y_true, y_pred=y_pred)
+        loss_object = CategoricalCrossentropy(from_logits=True)
+        logits = self.model(x)
+        return loss_object(y_true, logits)
 
     @tf.function
     def grad(self, inputs, targets):

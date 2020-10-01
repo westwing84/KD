@@ -15,7 +15,7 @@ import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 100            # Teacherモデルの学習回数
+EPOCHS_T = 200            # Teacherモデルの学習回数
 EPOCHS_S = 1000           # Studentモデルの学習回数
 BATCH_SIZE = 512        # バッチサイズ
 T = 5                   # 温度付きソフトマックスの温度
@@ -80,7 +80,7 @@ teacher_model = teacher.createModel(inputs)
 optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
 training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
-# plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
+plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
 history_teacher = LossAccHistory()
 for epoch in range(1, EPOCHS_T + 1):
     epoch_loss_avg = Mean()
@@ -110,6 +110,27 @@ for epoch in range(1, EPOCHS_T + 1):
     history_teacher.accuracy_val.append(epoch_accuracy_val.result() * 100)
 
 
+plt.figure()
+plt.subplot(1, 2, 1)
+plt.plot(history_teacher.accuracy)
+plt.plot(history_teacher.accuracy_val)
+plt.title('Teacher Model Accuracy')
+plt.ylabel('Accuracy [%]')
+plt.xlabel('Epoch')
+plt.ylim(0.0, 101.0)
+plt.legend(['Train', 'Validation'])
+
+plt.subplot(1, 2, 2)
+plt.plot(history_teacher.losses)
+plt.plot(history_teacher.losses_val)
+plt.title('Teacher Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.tight_layout()
+plt.show()
+
+
 # Studentモデルの定義
 student = KDModel.Students(NUM_CLASSES, T)
 student_model = student.createModel(inputs)
@@ -117,7 +138,7 @@ student_model = student.createModel(inputs)
 # Studentモデルの学習
 optimizer = Adam(learning_rate=LR_S)      # 最適化アルゴリズム
 student_model.summary()
-# plot_model(student_model, show_shapes=True, to_file='student_model.png')
+plot_model(student_model, show_shapes=True, to_file='student_model.png')
 kd = KDModel.KnowledgeDistillation(teacher_model, student_model, T, ALPHA)
 history_student = LossAccHistory()
 for epoch in range(1, EPOCHS_S + 1):
@@ -181,25 +202,6 @@ print('Test - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f},
     score_test[0].result(), score_test[1].result(), score_test[2].result(), score_test[3].result(), f1_test))
 
 # LossとAccuracyをグラフにプロット
-plt.figure()
-plt.subplot(1, 2, 1)
-plt.plot(history_teacher.accuracy)
-plt.plot(history_teacher.accuracy_val)
-plt.title('Teacher Model Accuracy')
-plt.ylabel('Accuracy [%]')
-plt.xlabel('Epoch')
-plt.ylim(0.0, 101.0)
-plt.legend(['Train', 'Validation'])
-
-plt.subplot(1, 2, 2)
-plt.plot(history_teacher.losses)
-plt.plot(history_teacher.losses_val)
-plt.title('Teacher Model Loss')
-plt.ylabel('Loss')
-plt.xlabel('Epoch')
-plt.legend(['Train', 'Validation'])
-plt.tight_layout()
-
 plt.figure()
 plt.subplot(1, 2, 1)
 plt.plot(history_student.accuracy)

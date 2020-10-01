@@ -13,7 +13,7 @@ import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS = 500            # 学習回数
+EPOCHS = 1000            # 学習回数
 BATCH_SIZE = 512        # バッチサイズ
 VALIDATION_SPLIT = 0.2  # 評価に用いるデータの割合
 VERBOSE = 2             # 学習進捗の表示モード
