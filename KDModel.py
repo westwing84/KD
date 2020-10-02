@@ -18,6 +18,15 @@ class Teacher():
         else:
             x = concatenate([inputs_main, inputs_aux], axis=1)
 
+        x = Conv2D(32, (3, 3), padding='same')(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(32, (3, 3), padding='same')(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Conv2D(32, (3, 3), padding='same')(x)
+        x = Activation('relu')(BatchNormalization()(x))
+        x = Dropout(0.25)(x)
+        x = MaxPooling2D(pool_size=(2, 2))(x)
+
         x = Conv2D(64, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
         x = Conv2D(64, (3, 3), padding='same')(x)
@@ -32,15 +41,6 @@ class Teacher():
         x = Conv2D(128, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
         x = Conv2D(128, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.25)(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
-
-        x = Conv2D(256, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(256, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(256, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
         x = Dropout(0.25)(x)
 
@@ -69,18 +69,15 @@ class Students():
     def createModel(self, inputs):
         x = Conv2D(8, (3, 3), padding='same')(inputs)
         x = Activation('relu')(BatchNormalization()(x))
+        x = MaxPooling2D(pool_size=(2, 2))(x)
         x = Conv2D(8, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
         x = Dropout(0.25)(x)
         x = MaxPooling2D(pool_size=(2, 2))(x)
 
-        x = Conv2D(16, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(16, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.25)(x)
-
-        x = GlobalAveragePooling2D()(x)
+        x = Flatten()(x)
+        x = Dense(64, activation='relu')(x)
+        x = Dropout(0.5)(x)
         logits = Dense(self.num_classes)(x)
 
         model = Model(inputs, logits, name='StudentModel')

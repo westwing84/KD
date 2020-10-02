@@ -17,7 +17,7 @@ import KDModel
 NUM_CLASSES = 10        # 分類するクラス数
 EPOCHS_T = 100            # Teacherモデルの学習回数
 EPOCHS_S = 1000           # Studentモデルの学習回数
-BATCH_SIZE = 256        # バッチサイズ
+BATCH_SIZE = 512        # バッチサイズ
 T = 2                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
 LR_S = 0.001            # Studentモデル学習時の学習率
@@ -119,27 +119,6 @@ for epoch in range(1, EPOCHS_T + 1):
     history_teacher.accuracy_val.append(epoch_accuracy_val.result() * 100)
 
 
-plt.figure()
-plt.subplot(1, 2, 1)
-plt.plot(history_teacher.accuracy)
-plt.plot(history_teacher.accuracy_val)
-plt.title('Teacher Model Accuracy')
-plt.ylabel('Accuracy [%]')
-plt.xlabel('Epoch')
-plt.ylim(0.0, 101.0)
-plt.legend(['Train', 'Validation'])
-
-plt.subplot(1, 2, 2)
-plt.plot(history_teacher.losses)
-plt.plot(history_teacher.losses_val)
-plt.title('Teacher Model Loss')
-plt.ylabel('Loss')
-plt.xlabel('Epoch')
-plt.legend(['Train', 'Validation'])
-plt.tight_layout()
-plt.show()
-
-
 # Studentモデルの定義
 student = KDModel.Students(NUM_CLASSES, T)
 student_model = student.createModel(inputs)
@@ -211,6 +190,27 @@ print('Test - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f},
     score_test[0].result(), score_test[1].result(), score_test[2].result(), score_test[3].result(), f1_test))
 
 # LossとAccuracyをグラフにプロット
+# Teacherモデルの学習結果
+plt.figure()
+plt.subplot(1, 2, 1)
+plt.plot(history_teacher.accuracy)
+plt.plot(history_teacher.accuracy_val)
+plt.title('Teacher Model Accuracy')
+plt.ylabel('Accuracy [%]')
+plt.xlabel('Epoch')
+plt.ylim(0.0, 101.0)
+plt.legend(['Train', 'Validation'])
+
+plt.subplot(1, 2, 2)
+plt.plot(history_teacher.losses)
+plt.plot(history_teacher.losses_val)
+plt.title('Teacher Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.tight_layout()
+
+# Studentモデルの学習結果
 plt.figure()
 plt.subplot(1, 2, 1)
 plt.plot(history_student.accuracy)

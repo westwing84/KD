@@ -98,7 +98,7 @@ with strategy.scope():
     teacher = KDModel.Teacher(NUM_CLASSES, T)
     student = KDModel.Students(NUM_CLASSES, T)
     model_T = teacher.createModel(inputs)
-    model_S = student.createHardModel(inputs)
+    model_S = student.createModel(inputs)
 
     # optimizer
     optimizer = Adam(learning_rate=LR_T)
@@ -232,30 +232,26 @@ with strategy.scope():
         return strategy.run(test_student, args=(dataset_inputs,))
 
 
-    # for epoch in range(EPOCHS_T):
-    #     # TRAIN LOOP
-    #     total_loss = 0.0
-    #     num_batches = 0
-    #     for step, train in enumerate(train_dataset):
-    #         total_loss = distributed_train_teacher(train)
-    #         #print(total_loss)
-    #
-    #     # TEST LOOP
-    #     for step_test, test in enumerate(test_dataset):
-    #         distributed_test_teacher(test)
-    #
-    #
-    #     template = ("Epoch {}, Loss: {}, ACC: {}, Test Loss: {}, "
-    #                         "Test ACC: {}")
-    #     print(template.format(epoch + 1, loss_metric.result().numpy(), acc_metric.result().numpy(),
-    #                                   test_loss_metric.result().numpy(), test_acc_metric.result().numpy()))
-    #
-    #     loss_metric.reset_states()
-    #     acc_metric.reset_states()
-    #     test_loss_metric.reset_states()
-    #     test_acc_metric.reset_states()
-    #
-    # manager.save()
+    for epoch in range(EPOCHS_T):
+        # TRAIN LOOP
+        total_loss = 0.0
+        num_batches = 0
+        for step, train in enumerate(train_dataset):
+            total_loss = distributed_train_teacher(train)
+            # print(total_loss)
+
+        # TEST LOOP
+        for step_test, test in enumerate(test_dataset):
+            distributed_test_teacher(test)
+
+        template = ("Epoch {}, Loss: {}, ACC: {}, Test Loss: {}, Test ACC: {}")
+        print(template.format(epoch + 1, loss_metric.result().numpy(), acc_metric.result().numpy(),
+                                      test_loss_metric.result().numpy(), test_acc_metric.result().numpy()))
+        loss_metric.reset_states()
+        acc_metric.reset_states()
+        test_loss_metric.reset_states()
+        test_acc_metric.reset_states()
+    manager.save()
 
     print("--------------------Finish Training Teacher--------------------------")
     checkpoint.restore(manager.latest_checkpoint)
