@@ -18,7 +18,12 @@ class Teacher():
             x = inputs_main
         else:
             x = concatenate([inputs_main, inputs_aux], axis=1)
-        model = xceptionModel(x, self.num_classes)
+        logits = xceptionModel(x, self.num_classes)
+
+        if inputs_aux == None:
+            model = Model(inputs_main, logits, name='TeacherModel')
+        else:
+            model = Model([inputs_main, inputs_aux], logits, name='TeacherModel')
 
         '''
         x = Conv2D(32, (3, 3), padding='same')(x)

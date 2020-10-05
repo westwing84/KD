@@ -7,9 +7,9 @@ from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Dropo
 def xceptionModel(inputs, num_classes):
 
     # entry flow
-    x = Conv2D(32, (3, 3), strides=2)(inputs)
+    x = Conv2D(32, (3, 3), strides=2, padding='same')(inputs)
     x = Activation('relu')(BatchNormalization()(x))
-    x = Conv2D(64, (3, 3), strides=2)(x)
+    x = Conv2D(64, (3, 3), padding='same')(x)
     x = Activation('relu')(BatchNormalization()(x))
 
     residual = Conv2D(128, (1, 1), strides=2, padding='same')(x)
@@ -25,6 +25,7 @@ def xceptionModel(inputs, num_classes):
     residual = Conv2D(256, (1, 1), strides=2, padding='same')(x)
     residual = BatchNormalization()(residual)
 
+    x = Activation('relu')(x)
     x = SeparableConv2D(256, (3, 3), padding='same')(x)
     x = Activation('relu')(BatchNormalization()(x))
     x = SeparableConv2D(256, (3, 3), padding='same')(x)
@@ -35,6 +36,7 @@ def xceptionModel(inputs, num_classes):
     residual = Conv2D(728, (1, 1), strides=2, padding='same')(x)
     residual = BatchNormalization()(residual)
 
+    x = Activation('relu')(x)
     x = SeparableConv2D(728, (3, 3), padding='same')(x)
     x = Activation('relu')(BatchNormalization()(x))
     x = SeparableConv2D(728, (3, 3), padding='same')(x)
@@ -72,9 +74,7 @@ def xceptionModel(inputs, num_classes):
     x = Activation('relu')(BatchNormalization()(x))
 
     x = GlobalAveragePooling2D()(x)
-    x = Dense(num_classes, kernel_initializer='he_normal')(x)
-    outputs = Activation('softmax')(x)
+    logits = Dense(num_classes, kernel_initializer='he_normal')(x)
 
-    model = Model(inputs, outputs)
-    return model
+    return logits
 
