@@ -3,6 +3,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Dropout, Conv2D, MaxPooling2D,\
     GlobalAveragePooling2D, Flatten, Lambda, concatenate
 from tensorflow.keras.losses import CategoricalCrossentropy
+from Models.Xception import xceptionModel
 
 
 # Teacherのモデル
@@ -17,7 +18,9 @@ class Teacher():
             x = inputs_main
         else:
             x = concatenate([inputs_main, inputs_aux], axis=1)
+        model = xceptionModel(x, self.num_classes)
 
+        '''
         x = Conv2D(32, (3, 3), padding='same')(x)
         x = Activation('relu')(BatchNormalization()(x))
         x = Conv2D(32, (3, 3), padding='same')(x)
@@ -55,7 +58,7 @@ class Teacher():
             model = Model(inputs_main, logits, name='TeacherModel')
         else:
             model = Model([inputs_main, inputs_aux], logits, name='TeacherModel')
-
+        '''
         return model
 
 

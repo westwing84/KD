@@ -1,16 +1,12 @@
 # Knowledge Distillation(知識の蒸留)を用いてCIFAR10を小さいモデルに学習
 
 import numpy as np
-import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.layers import Input
-from tensorflow.keras.metrics import Mean, CategoricalAccuracy, Precision, Recall
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
-from tensorflow.python.keras.utils.vis_utils import plot_model
-from Utils import LossAccHistory
-import KDModel
+from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数

@@ -8,9 +8,8 @@ from tensorflow.keras.metrics import Mean, CategoricalAccuracy, Precision, Recal
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
-from tensorflow.python.keras.utils.vis_utils import plot_model
 from Utils import LossAccHistory
-import KDModel
+from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
