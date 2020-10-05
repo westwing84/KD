@@ -76,7 +76,7 @@ n_ensemble = 20
 
 
 # checkpoint
-checkpoint_prefix = "D:\\usr\\pras\\result\\arxiv\\KnowldegeDistillation\\"
+# checkpoint_prefix = "D:\\usr\\pras\\result\\arxiv\\KnowldegeDistillation\\"
 
 # loss
 # ---------------------------Epoch&Loss--------------------------#
@@ -100,8 +100,8 @@ with strategy.scope():
     optimizer = Adam(learning_rate=LR_T)
 
     # checkpoint
-    checkpoint = tf.train.Checkpoint(step=tf.Variable(1), optimizer=optimizer, model=model_T)
-    manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=3)
+    # checkpoint = tf.train.Checkpoint(step=tf.Variable(1), optimizer=optimizer, model=model_T)
+    # manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=3)
 
     # loss
     loss = tf.losses.SparseCategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE, from_logits=True)
@@ -204,10 +204,8 @@ with strategy.scope():
     # with the distributed input.
     @tf.function
     def distributed_train_teacher(dataset_inputs):
-        per_replica_losses = strategy.run(train_teacher,
-                                          args=(dataset_inputs,))
-        return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
-                               axis=None)
+        per_replica_losses = strategy.run(train_teacher, args=(dataset_inputs,))
+        return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
 
 
     @tf.function
@@ -247,10 +245,10 @@ with strategy.scope():
         acc_metric.reset_states()
         test_loss_metric.reset_states()
         test_acc_metric.reset_states()
-    manager.save()
+    # manager.save()
 
     print("--------------------Finish Training Teacher--------------------------")
-    checkpoint.restore(manager.latest_checkpoint)
+    # checkpoint.restore(manager.latest_checkpoint)
     for epoch in range(EPOCHS_S):
         # TRAIN LOOP
         total_loss = 0.0

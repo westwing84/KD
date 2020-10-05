@@ -72,8 +72,9 @@ def xceptionModel(inputs, num_classes):
     x = Activation('relu')(BatchNormalization()(x))
 
     x = GlobalAveragePooling2D()(x)
-    logits = Dense(num_classes, kernel_initializer='he_normal')(x)
+    x = Dense(num_classes, kernel_initializer='he_normal')(x)
+    outputs = Activation('softmax')(x)
 
-    model = Model(inputs, logits)
+    model = Model(inputs, outputs)
     return model
 
