@@ -10,9 +10,8 @@ from Models.VGG16 import createVGG16
 # Teacherのモデル
 class Teacher():
 
-    def __init__(self, num_classes, temperature=5):
+    def __init__(self, num_classes):
         self.num_classes = num_classes
-        self.temperature = temperature
 
     def createModel(self, inputs_main, inputs_aux=None):
         if inputs_aux == None:

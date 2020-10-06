@@ -17,7 +17,7 @@ from Models import KDModel
 NUM_CLASSES = 10        # 分類するクラス数
 EPOCHS_T = 100            # Teacherモデルの学習回数
 EPOCHS_S = 1000           # Studentモデルの学習回数
-BATCH_SIZE = 256        # バッチサイズ
+BATCH_SIZE = 128        # バッチサイズ
 T = 2                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
 LR_T = 0.001            # Teacherモデル学習時の学習率
@@ -39,7 +39,7 @@ x = x.reshape([-1, 32, 32, 3])
 x_test = x_test.reshape([-1, 32, 32, 3])
 
 # MNISTのTrain用データをTrainとValidationに分割
-validation_split = 0.1
+validation_split = 0.2
 idx_split = int(x.shape[0] * (1 - validation_split))
 x_train, x_val = np.split(x, [idx_split])
 y_train, y_val = np.split(y, [idx_split])
@@ -73,15 +73,15 @@ ds = tf.data.Dataset.zip((ds_train, ds_val))
 
 # Teacherモデルの定義
 inputs = Input(shape=input_shape)
-teacher = KDModel.Teacher(NUM_CLASSES, T)
+teacher = KDModel.Teacher(NUM_CLASSES)
 teacher_model = teacher.createModel(inputs)
 
 # Teacherモデルの学習
 optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
 history_teacher = LossAccHistory()
-'''
+
 teacher_model.compile(optimizer=optimizer,
-                      loss=CategoricalCrossentropy(),
+                      loss=CategoricalCrossentropy(from_logits=True),
                       metrics=['accuracy'])
 teacher_model.summary()
 teacher_model.fit(x_train, y_train,
@@ -121,6 +121,7 @@ for epoch in range(1, EPOCHS_T + 1):
     history_teacher.accuracy.append(epoch_accuracy.result() * 100)
     history_teacher.losses_val.append(epoch_loss_avg_val.result())
     history_teacher.accuracy_val.append(epoch_accuracy_val.result() * 100)
+'''
 
 # Teacherモデルの学習結果
 plt.figure()

@@ -40,8 +40,10 @@ def createVGG16(inputs, num_classes):
     x = MaxPooling2D((2, 2), padding='same')(x)
 
     x = Flatten()(x)
-    x = Dense(4096, activation='relu')(x)
-    x = Dense(4096, activation='relu')(x)
+    x = Dense(4096)(x)
+    x = Activation('relu')(BatchNormalization()(x))
+    x = Dense(4096)(x)
+    x = Activation('relu')(BatchNormalization()(x))
     logits = Dense(num_classes)(x)
 
     return logits
