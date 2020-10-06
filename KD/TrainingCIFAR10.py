@@ -39,7 +39,7 @@ x = x.reshape([-1, 32, 32, 3])
 x_test = x_test.reshape([-1, 32, 32, 3])
 
 # MNISTのTrain用データをTrainとValidationに分割
-validation_split = 0.2
+validation_split = 0.1
 idx_split = int(x.shape[0] * (1 - validation_split))
 x_train, x_val = np.split(x, [idx_split])
 y_train, y_val = np.split(y, [idx_split])
@@ -150,7 +150,7 @@ student_model = student.createModel(inputs)
 # Studentモデルの学習
 optimizer = Adam(learning_rate=LR_S)      # 最適化アルゴリズム
 student_model.summary()
-plot_model(student_model, show_shapes=True, to_file='student_model.png')
+# plot_model(student_model, show_shapes=True, to_file='student_model.png')
 kd = KDModel.KnowledgeDistillation(teacher_model, student_model, T, ALPHA)
 history_student = LossAccHistory()
 for epoch in range(1, EPOCHS_S + 1):

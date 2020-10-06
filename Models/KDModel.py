@@ -3,7 +3,8 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Dropout, Conv2D, MaxPooling2D,\
     GlobalAveragePooling2D, Flatten, Lambda, concatenate
 from tensorflow.keras.losses import CategoricalCrossentropy
-from Models.Xception import xceptionModel
+from Models.Xception import createXception
+from Models.VGG16 import createVGG16
 
 
 # Teacherのモデル
@@ -18,7 +19,7 @@ class Teacher():
             x = inputs_main
         else:
             x = concatenate([inputs_main, inputs_aux], axis=1)
-        logits = xceptionModel(x, self.num_classes)
+        logits = createVGG16(x, self.num_classes)
 
         if inputs_aux == None:
             model = Model(inputs_main, logits, name='TeacherModel')

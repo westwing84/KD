@@ -1,10 +1,8 @@
-
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Dropout, Conv2D, MaxPooling2D,\
+from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Conv2D, MaxPooling2D,\
     GlobalAveragePooling2D, SeparableConv2D, add
 
 
-def xceptionModel(inputs, num_classes):
+def createXception(inputs, num_classes):
 
     # entry flow
     x = Conv2D(32, (3, 3), strides=2, padding='same')(inputs)
