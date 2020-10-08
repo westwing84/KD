@@ -9,7 +9,11 @@ class LossAccHistory(Callback):
         self.accuracy_val = []
 
     def on_epoch_end(self, epoch, logs={}):
-        self.losses.append(logs.get('loss'))
-        self.accuracy.append(logs.get('accuracy'))
-        self.losses_val.append(logs.get('val_loss'))
-        self.accuracy_val.append(logs.get('val_accuracy'))
+        loss = logs.get('loss')
+        accuracy = logs.get('accuracy') * 100
+        val_loss = logs.get('val_loss')
+        val_accuracy = logs.get('val_accuracy') * 100
+        self.losses.append(loss)
+        self.accuracy.append(accuracy)
+        self.losses_val.append(val_loss)
+        self.accuracy_val.append(val_accuracy)

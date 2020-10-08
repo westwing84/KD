@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.layers import Input
-from tensorflow.keras.losses import CategoricalCrossentropy
-from tensorflow.keras.metrics import Mean, CategoricalAccuracy, Precision, Recall
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.metrics import Mean, SparseCategoricalAccuracy, Precision, Recall
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
@@ -15,12 +15,13 @@ from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 100            # Teacherモデルの学習回数
-EPOCHS_S = 1000           # Studentモデルの学習回数
-BATCH_SIZE = 128        # バッチサイズ
+EPOCHS_T = 100          # Teacherモデルの学習回数
+EPOCHS_S = 200          # Studentモデルの学習回数
+BATCH_SIZE_T = 128      # Teacherモデル学習時のバッチサイズ
+BATCH_SIZE_S = 512     # Studentモデル学習時のバッチサイズ
 T = 2                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
-LR_T = 0.001            # Teacherモデル学習時の学習率
+LR_T = 0.0005           # Teacherモデル学習時の学習率
 LR_S = 0.001            # Studentモデル学習時の学習率
 
 
@@ -31,8 +32,8 @@ def f1_score(precision, recall):
 
 # CIFAR10データセットの準備
 (x, y), (x_test, y_test) = cifar10.load_data()
-y = to_categorical(y, NUM_CLASSES)
-y_test = to_categorical(y_test, NUM_CLASSES)
+# y = to_categorical(y, NUM_CLASSES)
+# y_test = to_categorical(y_test, NUM_CLASSES)
 x = x.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
 x = x.reshape([-1, 32, 32, 3])
@@ -65,12 +66,6 @@ for i in range(n):
 plt.show()
 '''
 
-# MNISTデータセットをtf.data.Datasetに変換
-ds_train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)
-ds_val = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE)
-ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE)
-ds = tf.data.Dataset.zip((ds_train, ds_val))
-
 # Teacherモデルの定義
 inputs = Input(shape=input_shape)
 teacher = KDModel.Teacher(NUM_CLASSES)
@@ -81,11 +76,11 @@ optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
 history_teacher = LossAccHistory()
 
 teacher_model.compile(optimizer=optimizer,
-                      loss=CategoricalCrossentropy(from_logits=True),
+                      loss=SparseCategoricalCrossentropy(from_logits=True),
                       metrics=['accuracy'])
 teacher_model.summary()
 teacher_model.fit(x_train, y_train,
-                  batch_size=BATCH_SIZE,
+                  batch_size=BATCH_SIZE_T,
                   epochs=EPOCHS_T,
                   verbose=2,
                   validation_data=(x_val, y_val),
@@ -123,26 +118,12 @@ for epoch in range(1, EPOCHS_T + 1):
     history_teacher.accuracy_val.append(epoch_accuracy_val.result() * 100)
 '''
 
-# Teacherモデルの学習結果
-plt.figure()
-plt.subplot(1, 2, 1)
-plt.plot(history_teacher.accuracy)
-plt.plot(history_teacher.accuracy_val)
-plt.title('Teacher Model Accuracy')
-plt.ylabel('Accuracy [%]')
-plt.xlabel('Epoch')
-plt.ylim(0.0, 101.0)
-plt.legend(['Train', 'Validation'])
 
-plt.subplot(1, 2, 2)
-plt.plot(history_teacher.losses)
-plt.plot(history_teacher.losses_val)
-plt.title('Teacher Model Loss')
-plt.ylabel('Loss')
-plt.xlabel('Epoch')
-plt.legend(['Train', 'Validation'])
-plt.tight_layout()
-plt.show()
+# MNISTデータセットをtf.data.Datasetに変換
+ds_train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE_S)
+ds_val = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE_S)
+ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE_S)
+ds = tf.data.Dataset.zip((ds_train, ds_val))
 
 # Studentモデルの定義
 student = KDModel.Students(NUM_CLASSES, T)
@@ -157,8 +138,8 @@ history_student = LossAccHistory()
 for epoch in range(1, EPOCHS_S + 1):
     epoch_loss_avg = Mean()
     epoch_loss_avg_val = Mean()
-    epoch_accuracy = CategoricalAccuracy()
-    epoch_accuracy_val = CategoricalAccuracy()
+    epoch_accuracy = SparseCategoricalAccuracy()
+    epoch_accuracy_val = SparseCategoricalAccuracy()
 
     # 各バッチごとに学習
     for (x_train_, y_train_), (x_val_, y_val_) in ds:
@@ -182,9 +163,9 @@ for epoch in range(1, EPOCHS_S + 1):
     history_student.accuracy_val.append(epoch_accuracy_val.result() * 100)
 
 # Studentモデルの評価
-score_train = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
-score_val = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
-score_test = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
+score_train = [Mean(), SparseCategoricalAccuracy(), Precision(), Recall()]
+score_val = [Mean(), SparseCategoricalAccuracy(), Precision(), Recall()]
+score_test = [Mean(), SparseCategoricalAccuracy(), Precision(), Recall()]
 ds = tf.data.Dataset.zip((ds_train, ds_val, ds_test))
 for (x_train_, y_train_), (x_val_, y_val_), (x_test_, y_test_) in ds:
     probs_train = tf.nn.softmax(student_model(x_train_))
@@ -215,6 +196,27 @@ print('Test - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f},
     score_test[0].result(), score_test[1].result(), score_test[2].result(), score_test[3].result(), f1_test))
 
 # LossとAccuracyをグラフにプロット
+# Teacherモデルの学習結果
+plt.figure()
+plt.subplot(1, 2, 1)
+plt.plot(history_teacher.accuracy)
+plt.plot(history_teacher.accuracy_val)
+plt.title('Teacher Model Accuracy')
+plt.ylabel('Accuracy [%]')
+plt.xlabel('Epoch')
+plt.ylim(0.0, 101.0)
+plt.legend(['Train', 'Validation'])
+
+plt.subplot(1, 2, 2)
+plt.plot(history_teacher.losses)
+plt.plot(history_teacher.losses_val)
+plt.title('Teacher Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.ylim(0.0, 5.0)
+plt.legend(['Train', 'Validation'])
+plt.tight_layout()
+
 # Studentモデルの学習結果
 plt.figure()
 plt.subplot(1, 2, 1)

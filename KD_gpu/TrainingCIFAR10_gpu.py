@@ -10,8 +10,8 @@ from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 100            # Teacherモデルの学習回数
-EPOCHS_S = 500           # Studentモデルの学習回数
+EPOCHS_T = 100          # Teacherモデルの学習回数
+EPOCHS_S = 500          # Studentモデルの学習回数
 BATCH_SIZE = 512        # バッチサイズ
 T = 5                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
@@ -51,8 +51,6 @@ print(GLOBAL_BATCH_SIZE)
 
 # CIFAR10データセットの準備
 (x, y), (x_test, y_test) = cifar10.load_data()
-y = to_categorical(y, NUM_CLASSES)
-y_test = to_categorical(y_test, NUM_CLASSES)
 x = x.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
 x = x.reshape([-1, 32, 32, 3])
@@ -215,10 +213,8 @@ with strategy.scope():
 
     @tf.function
     def distributed_train_student(dataset_inputs):
-        per_replica_losses = strategy.run(train_student,
-                                          args=(dataset_inputs,))
-        return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
-                               axis=None)
+        per_replica_losses = strategy.run(train_student, args=(dataset_inputs,))
+        return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
 
 
     @tf.function
