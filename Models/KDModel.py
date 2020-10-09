@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Dropout, Conv2D, MaxPooling2D,\
     Flatten, concatenate
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.losses import CategoricalCrossentropy
 from Models.Xception import createXception
 from Models.VGG16 import createVGG16
 
@@ -104,7 +104,7 @@ class KnowledgeDistillation():
 
     @tf.function
     def loss(self, x, y_true):
-        loss_object = SparseCategoricalCrossentropy(from_logits=True)
+        loss_object = CategoricalCrossentropy(from_logits=True)
         teacher_pred = tf.nn.softmax(self.teacher_model(x) / self.temperature)
         logits = self.student_model(x)
         loss_value = (1 - self.alpha) * loss_object(y_true, logits) + \
@@ -119,7 +119,7 @@ class KnowledgeDistillation():
 
     @tf.function
     def loss_mainaux(self, x_main, x_aux, y_true):
-        loss_object = SparseCategoricalCrossentropy(from_logits=True)
+        loss_object = CategoricalCrossentropy(from_logits=True)
         teacher_pred = tf.nn.softmax(self.teacher_model([x_main, x_aux]))
         logits = self.student_model(x_main)
         loss_value = (1 - self.alpha) * loss_object(y_true, logits) + \
@@ -140,7 +140,7 @@ class NormalTraining():
 
     @tf.function
     def loss(self, x, y_true):
-        loss_object = SparseCategoricalCrossentropy(from_logits=True)
+        loss_object = CategoricalCrossentropy(from_logits=True)
         logits = self.model(x)
         return loss_object(y_true, logits)
 

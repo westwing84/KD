@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.layers import Input
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.metrics import Mean, SparseCategoricalAccuracy, Precision, Recall
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.metrics import Mean, CategoricalAccuracy, Precision, Recall
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
@@ -32,8 +32,8 @@ def f1_score(precision, recall):
 
 # CIFAR10データセットの準備
 (x, y), (x_test, y_test) = cifar10.load_data()
-# y = to_categorical(y, NUM_CLASSES)
-# y_test = to_categorical(y_test, NUM_CLASSES)
+y = to_categorical(y, NUM_CLASSES)
+y_test = to_categorical(y_test, NUM_CLASSES)
 x = x.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
 x = x.reshape([-1, 32, 32, 3])
@@ -76,7 +76,7 @@ optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
 history_teacher = LossAccHistory()
 
 teacher_model.compile(optimizer=optimizer,
-                      loss=SparseCategoricalCrossentropy(from_logits=True),
+                      loss=CategoricalCrossentropy(from_logits=True),
                       metrics=['accuracy'])
 teacher_model.summary()
 teacher_model.fit(x_train, y_train,
@@ -138,8 +138,8 @@ history_student = LossAccHistory()
 for epoch in range(1, EPOCHS_S + 1):
     epoch_loss_avg = Mean()
     epoch_loss_avg_val = Mean()
-    epoch_accuracy = SparseCategoricalAccuracy()
-    epoch_accuracy_val = SparseCategoricalAccuracy()
+    epoch_accuracy = CategoricalAccuracy()
+    epoch_accuracy_val = CategoricalAccuracy()
 
     # 各バッチごとに学習
     for (x_train_, y_train_), (x_val_, y_val_) in ds:
@@ -163,9 +163,9 @@ for epoch in range(1, EPOCHS_S + 1):
     history_student.accuracy_val.append(epoch_accuracy_val.result() * 100)
 
 # Studentモデルの評価
-score_train = [Mean(), SparseCategoricalAccuracy(), Precision(), Recall()]
-score_val = [Mean(), SparseCategoricalAccuracy(), Precision(), Recall()]
-score_test = [Mean(), SparseCategoricalAccuracy(), Precision(), Recall()]
+score_train = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
+score_val = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
+score_test = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
 ds = tf.data.Dataset.zip((ds_train, ds_val, ds_test))
 for (x_train_, y_train_), (x_val_, y_val_), (x_test_, y_test_) in ds:
     probs_train = tf.nn.softmax(student_model(x_train_))
