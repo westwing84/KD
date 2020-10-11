@@ -21,7 +21,7 @@ BATCH_SIZE_T = 128      # Teacherモデル学習時のバッチサイズ
 BATCH_SIZE_S = 512     # Studentモデル学習時のバッチサイズ
 T = 2                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
-LR_T = 0.0005           # Teacherモデル学習時の学習率
+LR_T = 0.0001           # Teacherモデル学習時の学習率
 LR_S = 0.001            # Studentモデル学習時の学習率
 
 
@@ -66,6 +66,12 @@ for i in range(n):
 plt.show()
 '''
 
+# CIFAR-10をデータセット化し，Train, Validation, Testに分割
+ds_train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE_T)
+ds_val = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE_T)
+ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE_T)
+ds = tf.data.Dataset.zip((ds_train, ds_val))
+
 # Teacherモデルの定義
 inputs = Input(shape=input_shape)
 teacher = KDModel.Teacher(NUM_CLASSES)
@@ -75,6 +81,7 @@ teacher_model = teacher.createModel(inputs)
 optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
 history_teacher = LossAccHistory()
 
+'''
 teacher_model.compile(optimizer=optimizer,
                       loss=CategoricalCrossentropy(from_logits=True),
                       metrics=['accuracy'])
@@ -89,7 +96,7 @@ teacher_model.fit(x_train, y_train,
 
 training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
-# plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
+plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
 for epoch in range(1, EPOCHS_T + 1):
     epoch_loss_avg = Mean()
     epoch_loss_avg_val = Mean()
@@ -116,10 +123,9 @@ for epoch in range(1, EPOCHS_T + 1):
     history_teacher.accuracy.append(epoch_accuracy.result() * 100)
     history_teacher.losses_val.append(epoch_loss_avg_val.result())
     history_teacher.accuracy_val.append(epoch_accuracy_val.result() * 100)
-'''
 
 
-# MNISTデータセットをtf.data.Datasetに変換
+# バッチサイズ変更
 ds_train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE_S)
 ds_val = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE_S)
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE_S)
