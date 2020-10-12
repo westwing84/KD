@@ -1,21 +1,23 @@
 # Knowledge Distillation(知識の蒸留)を用いてCIFAR10を小さいモデルに学習
 
 import numpy as np
+import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.layers import Input
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
 from Models import KDModel
+from Utils import LossAccHistory
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 300          # Teacherモデルの学習回数
+EPOCHS_T = 100          # Teacherモデルの学習回数
 EPOCHS_S = 1000          # Studentモデルの学習回数
 BATCH_SIZE = 512        # バッチサイズ
 T = 2                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
-LR_T = 0.00001           # Teacherモデル学習時の学習率
+LR_T = 0.0001           # Teacherモデル学習時の学習率
 LR_S = 0.001            # Studentモデル学習時の学習率
 
 
@@ -47,7 +49,7 @@ strategy = tf.distribute.MirroredStrategy(cross_device_ops=cross_tower_ops)
 
 # config strategry
 GLOBAL_BATCH_SIZE = BATCH_SIZE * strategy.num_replicas_in_sync
-print(GLOBAL_BATCH_SIZE)
+print('Global Batch Size:', GLOBAL_BATCH_SIZE)
 
 # CIFAR10データセットの準備
 (x, y), (x_test, y_test) = cifar10.load_data()
@@ -67,7 +69,7 @@ input_shape = x_train.shape[1:]
 
 # Batch and shuffle the data
 train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_train.shape[0]).batch(BATCH_SIZE)
-validation_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE)
+valid_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE)
 test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE)
 # uncertainty
 mc = True
@@ -185,8 +187,8 @@ with strategy.scope():
                     ALPHA * compute_loss(teacher_pred, logits / T, GLOBAL_BATCH_SIZE))
             acc = compute_acc(y_train, probs)
 
-        grads = tape.gradient(loss, model_S.trainable_weights)
-        optimizer.apply_gradients(zip(grads, model_S.trainable_weights))
+        grads = tape.gradient(loss, model_S.trainable_variables)
+        optimizer.apply_gradients(zip(grads, model_S.trainable_variables))
 
         loss_metric(loss)
         acc_metric(acc)
@@ -230,7 +232,8 @@ with strategy.scope():
     def distributed_test_student(dataset_inputs):
         return strategy.run(test_student, args=(dataset_inputs,))
 
-
+    # Teacherモデルの学習
+    history_teacher = LossAccHistory()
     for epoch in range(EPOCHS_T):
         # TRAIN LOOP
         total_loss = 0.0
@@ -240,13 +243,17 @@ with strategy.scope():
             # print(total_loss)
 
         # TEST LOOP
-        for step_test, test in enumerate(test_dataset):
+        for step_test, test in enumerate(valid_dataset):
             distributed_test_teacher(test)
 
 
-        template = ("Epoch {}, Loss: {}, ACC: {}, Test Loss: {}, Test ACC: {}")
-        print(template.format(epoch + 1, loss_metric.result().numpy(), acc_metric.result().numpy(),
-                                      test_loss_metric.result().numpy(), test_acc_metric.result().numpy()))
+        template = ("Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}")
+        print(template.format(epoch + 1, EPOCHS_T, loss_metric.result().numpy(), acc_metric.result().numpy(),
+                              test_loss_metric.result().numpy(), test_acc_metric.result().numpy()))
+        history_teacher.losses.append(loss_metric.result().numpy())
+        history_teacher.accuracy.append(acc_metric.result().numpy() * 100)
+        history_teacher.losses_val.append(test_loss_metric.result().numpy())
+        history_teacher.accuracy_val.append(test_acc_metric.result().numpy() * 100)
         loss_metric.reset_states()
         acc_metric.reset_states()
         test_loss_metric.reset_states()
@@ -255,6 +262,9 @@ with strategy.scope():
 
     print("--------------------Finish Training Teacher--------------------------")
     # checkpoint.restore(manager.latest_checkpoint)
+
+    # Studentモデルの学習
+    history_student = LossAccHistory()
     for epoch in range(EPOCHS_S):
         # TRAIN LOOP
         total_loss = 0.0
@@ -264,16 +274,66 @@ with strategy.scope():
             # print(total_loss)
 
         # TEST LOOP
-        for step_test, test in enumerate(test_dataset):
+        for step_test, test in enumerate(valid_dataset):
             distributed_test_student(test)
 
-        template = ("Epoch {}, Loss: {}, ACC: {}, Test Loss: {}, "
-                    "Test ACC: {}")
-        print(template.format(epoch + 1, loss_metric.result().numpy(), acc_metric.result().numpy(),
+        template = ("Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}")
+        print(template.format(epoch + 1, EPOCHS_T, loss_metric.result().numpy(), acc_metric.result().numpy(),
                               test_loss_metric.result().numpy(), test_acc_metric.result().numpy()))
+
+        history_student.losses.append(loss_metric.result().numpy())
+        history_student.accuracy.append(acc_metric.result().numpy() * 100)
+        history_student.losses_val.append(test_loss_metric.result().numpy())
+        history_student.accuracy_val.append(test_acc_metric.result().numpy() * 100)
 
         loss_metric.reset_states()
         acc_metric.reset_states()
         test_loss_metric.reset_states()
         test_acc_metric.reset_states()
+
+
+# LossとAccuracyをグラフにプロット
+# Teacherモデルの学習結果
+plt.figure()
+plt.subplot(1, 2, 1)
+plt.plot(history_teacher.accuracy)
+plt.plot(history_teacher.accuracy_val)
+plt.title('Teacher Model Accuracy')
+plt.ylabel('Accuracy [%]')
+plt.xlabel('Epoch')
+plt.ylim(0.0, 101.0)
+plt.legend(['Train', 'Validation'])
+
+plt.subplot(1, 2, 2)
+plt.plot(history_teacher.losses)
+plt.plot(history_teacher.losses_val)
+plt.title('Teacher Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.ylim(0.0, 5.0)
+plt.legend(['Train', 'Validation'])
+plt.tight_layout()
+
+# Studentモデルの学習結果
+plt.figure()
+plt.subplot(1, 2, 1)
+plt.plot(history_student.accuracy)
+plt.plot(history_student.accuracy_val)
+plt.title('Student Model Accuracy')
+plt.ylabel('Accuracy [%]')
+plt.xlabel('Epoch')
+plt.ylim(0.0, 101.0)
+plt.legend(['Train', 'Validation'])
+
+plt.subplot(1, 2, 2)
+plt.plot(history_student.losses)
+plt.plot(history_student.losses_val)
+plt.title('Student Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'])
+plt.tight_layout()
+
+plt.show()
+
 
