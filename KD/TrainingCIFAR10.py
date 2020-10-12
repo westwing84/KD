@@ -16,7 +16,7 @@ from Models import KDModel
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
 EPOCHS_T = 100          # Teacherモデルの学習回数
-EPOCHS_S = 200          # Studentモデルの学習回数
+EPOCHS_S = 1000          # Studentモデルの学習回数
 BATCH_SIZE_T = 128      # Teacherモデル学習時のバッチサイズ
 BATCH_SIZE_S = 512     # Studentモデル学習時のバッチサイズ
 T = 2                   # 温度付きソフトマックスの温度
@@ -98,31 +98,35 @@ training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
 plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
 for epoch in range(1, EPOCHS_T + 1):
-    epoch_loss_avg = Mean()
-    epoch_loss_avg_val = Mean()
-    epoch_accuracy = CategoricalAccuracy()
-    epoch_accuracy_val = CategoricalAccuracy()
+    loss_metric = Mean()
+    loss_metric_val = Mean()
+    acc_metric = Mean()
+    acc_metric_val = Mean()
+    acc = CategoricalAccuracy()
+    acc_val = CategoricalAccuracy()
 
     # 各バッチごとに学習
     for (x_train_, y_train_), (x_val_, y_val_) in ds:
         loss_value, grads = training.grad(x_train_, y_train_)
         optimizer.apply_gradients(zip(grads, teacher_model.trainable_variables))
         loss_value_test = training.loss(x_val_, y_val_)
+        probs = tf.nn.softmax(teacher_model(x_train_))
+        probs_val = tf.nn.softmax(teacher_model(x_val_))
 
-        epoch_loss_avg(loss_value)
-        epoch_accuracy(y_train_, tf.nn.softmax(teacher_model(x_train_)))
-        epoch_loss_avg_val(loss_value_test)
-        epoch_accuracy_val(y_val_, tf.nn.softmax(teacher_model(x_val_)))
+        loss_metric(loss_value)
+        acc_metric(acc(y_train_, probs))
+        loss_metric_val(loss_value_test)
+        acc_metric_val(acc_val(y_val_, probs_val))
 
     # 学習進捗の表示
     print('Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}'.format(
-        epoch, EPOCHS_T, epoch_loss_avg.result(), epoch_accuracy.result(),
-        epoch_loss_avg_val.result(), epoch_accuracy_val.result()))
+        epoch, EPOCHS_T, loss_metric.result().numpy(), acc_metric.result().numpy(),
+        loss_metric_val.result().numpy(), acc_metric_val.result().numpy()))
     # LossとAccuracyの記録(後でグラフにプロットするため)
-    history_teacher.losses.append(epoch_loss_avg.result())
-    history_teacher.accuracy.append(epoch_accuracy.result() * 100)
-    history_teacher.losses_val.append(epoch_loss_avg_val.result())
-    history_teacher.accuracy_val.append(epoch_accuracy_val.result() * 100)
+    history_teacher.losses.append(loss_metric.result().numpy())
+    history_teacher.accuracy.append(acc_metric.result().numpy() * 100)
+    history_teacher.losses_val.append(loss_metric_val.result().numpy())
+    history_teacher.accuracy_val.append(acc_metric_val.result().numpy() * 100)
 
 
 # バッチサイズ変更
@@ -142,31 +146,35 @@ student_model.summary()
 kd = KDModel.KnowledgeDistillation(teacher_model, student_model, T, ALPHA)
 history_student = LossAccHistory()
 for epoch in range(1, EPOCHS_S + 1):
-    epoch_loss_avg = Mean()
-    epoch_loss_avg_val = Mean()
-    epoch_accuracy = CategoricalAccuracy()
-    epoch_accuracy_val = CategoricalAccuracy()
+    loss_metric = Mean()
+    loss_metric_val = Mean()
+    acc_metric = Mean()
+    acc_metric_val = Mean()
+    acc = CategoricalAccuracy()
+    acc_val = CategoricalAccuracy()
 
     # 各バッチごとに学習
     for (x_train_, y_train_), (x_val_, y_val_) in ds:
         loss_value, grads = kd.grad(x_train_, y_train_)
         optimizer.apply_gradients(zip(grads, student_model.trainable_variables))
         loss_value_test = kd.loss(x_val_, y_val_)
+        probs = tf.nn.softmax(student_model(x_train_))
+        probs_val = tf.nn.softmax(student_model(x_val_))
 
-        epoch_loss_avg(loss_value)
-        epoch_accuracy(y_train_, tf.nn.softmax(student_model(x_train_)))
-        epoch_loss_avg_val(loss_value_test)
-        epoch_accuracy_val(y_val_, tf.nn.softmax(student_model(x_val_)))
+        loss_metric(loss_value)
+        acc_metric(acc(y_train_, probs))
+        loss_metric_val(loss_value_test)
+        acc_metric_val(acc_val(y_val_, probs_val))
 
     # 学習進捗の表示
     print('Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}'.format(
-        epoch, EPOCHS_S, epoch_loss_avg.result(), epoch_accuracy.result(),
-        epoch_loss_avg_val.result(), epoch_accuracy_val.result()))
+        epoch, EPOCHS_S, loss_metric.result().numpy(), acc_metric.result().numpy(),
+        loss_metric_val.result().numpy(), acc_metric_val.result().numpy()))
     # LossとAccuracyの記録(後でグラフにプロットするため)
-    history_student.losses.append(epoch_loss_avg.result())
-    history_student.accuracy.append(epoch_accuracy.result() * 100)
-    history_student.losses_val.append(epoch_loss_avg_val.result())
-    history_student.accuracy_val.append(epoch_accuracy_val.result() * 100)
+    history_student.losses.append(loss_metric.result().numpy())
+    history_student.accuracy.append(acc_metric.result().numpy() * 100)
+    history_student.losses_val.append(loss_metric_val.result().numpy())
+    history_student.accuracy_val.append(acc_metric_val.result().numpy() * 100)
 
 # Studentモデルの評価
 score_train = [Mean(), CategoricalAccuracy(), Precision(), Recall()]
@@ -189,17 +197,17 @@ for (x_train_, y_train_), (x_val_, y_val_), (x_test_, y_test_) in ds:
     score_train[3](y_train_, probs_train)
     score_val[3](y_val_, probs_val)
     score_test[3](y_test_, probs_test)
-f1_train = f1_score(score_train[2].result(), score_train[3].result())
-f1_val = f1_score(score_val[2].result(), score_val[3].result())
-f1_test = f1_score(score_test[2].result(), score_test[3].result())
+f1_train = f1_score(score_train[2].result().numpy(), score_train[3].result().numpy())
+f1_val = f1_score(score_val[2].result().numpy(), score_val[3].result().numpy())
+f1_test = f1_score(score_test[2].result().numpy(), score_test[3].result().numpy())
 
 print('-----------------------------Student Model------------------------------------')
 print('Train - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_train[0].result(), score_train[1].result(), score_train[2].result(), score_train[3].result(), f1_train))
+    score_train[0].result().numpy(), score_train[1].result().numpy(), score_train[2].result().numpy(), score_train[3].result().numpy(), f1_train))
 print('Validation - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_val[0].result(), score_val[1].result(), score_val[2].result(), score_val[3].result(), f1_val))
+    score_val[0].result().numpy(), score_val[1].result().numpy(), score_val[2].result().numpy(), score_val[3].result().numpy(), f1_val))
 print('Test - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_test[0].result(), score_test[1].result(), score_test[2].result(), score_test[3].result(), f1_test))
+    score_test[0].result().numpy(), score_test[1].result().numpy(), score_test[2].result().numpy(), score_test[3].result().numpy(), f1_test))
 
 # LossとAccuracyをグラフにプロット
 # Teacherモデルの学習結果

@@ -10,12 +10,12 @@ from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 100          # Teacherモデルの学習回数
-EPOCHS_S = 500          # Studentモデルの学習回数
+EPOCHS_T = 300          # Teacherモデルの学習回数
+EPOCHS_S = 1000          # Studentモデルの学習回数
 BATCH_SIZE = 512        # バッチサイズ
-T = 5                   # 温度付きソフトマックスの温度
+T = 2                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
-LR_T = 0.0005           # Teacherモデル学習時の学習率
+LR_T = 0.00001           # Teacherモデル学習時の学習率
 LR_S = 0.001            # Studentモデル学習時の学習率
 
 
@@ -53,6 +53,8 @@ print(GLOBAL_BATCH_SIZE)
 (x, y), (x_test, y_test) = cifar10.load_data()
 x = x.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
+y = to_categorical(y, NUM_CLASSES)
+y_test = to_categorical(y_test, NUM_CLASSES)
 x = x.reshape([-1, 32, 32, 3])
 x_test = x_test.reshape([-1, 32, 32, 3])
 
@@ -89,7 +91,7 @@ with strategy.scope():
 
     # create model
     inputs = Input(shape=input_shape)
-    teacher = KDModel.Teacher(NUM_CLASSES, T)
+    teacher = KDModel.Teacher(NUM_CLASSES)
     student = KDModel.Students(NUM_CLASSES, T)
     model_T = teacher.createModel(inputs)
     model_S = student.createModel(inputs)
@@ -102,9 +104,9 @@ with strategy.scope():
     # manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=3)
 
     # loss
-    loss = tf.losses.SparseCategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE, from_logits=True)
+    loss = tf.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE, from_logits=True)
     cross_loss = tf.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE, from_logits=True)
-    acc = tf.keras.metrics.SparseCategoricalAccuracy()
+    acc = tf.keras.metrics.CategoricalAccuracy()
 
 
     def compute_loss(labels, predictions, global_batch_size):
@@ -130,8 +132,8 @@ with strategy.scope():
             loss = compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)
             acc = compute_acc(y_train, probs)
 
-        grads = tape.gradient(loss, model_T.trainable_weights)
-        optimizer.apply_gradients(zip(grads, model_T.trainable_weights))
+        grads = tape.gradient(loss, model_T.trainable_variables)
+        optimizer.apply_gradients(zip(grads, model_T.trainable_variables))
 
         loss_metric(loss)
         acc_metric(acc)
@@ -155,6 +157,7 @@ with strategy.scope():
         x_train = inputs[0]
         y_train = inputs[1]
         with tf.GradientTape() as tape:
+            '''
             if mc:
                 probs = []
                 for i in range(n_ensemble):
@@ -172,8 +175,14 @@ with strategy.scope():
                 teacher_pred = tf.nn.softmax(model_T(x_train) / T)
                 logits = model_S(x_train)
                 probs = tf.nn.softmax(logits)
-                loss = (ALPHA * compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)) + (
-                            (1 - ALPHA) * compute_cross_loss(teacher_pred, logits / T, GLOBAL_BATCH_SIZE))
+                loss = ((1 - ALPHA) * compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)) + (
+                            ALPHA * compute_loss(teacher_pred, logits / T, GLOBAL_BATCH_SIZE))
+            '''
+            teacher_pred = tf.nn.softmax(model_T(x_train) / T)
+            logits = model_S(x_train)
+            probs = tf.nn.softmax(logits)
+            loss = ((1 - ALPHA) * compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)) + (
+                    ALPHA * compute_loss(teacher_pred, logits / T, GLOBAL_BATCH_SIZE))
             acc = compute_acc(y_train, probs)
 
         grads = tape.gradient(loss, model_S.trainable_weights)
@@ -233,6 +242,7 @@ with strategy.scope():
         # TEST LOOP
         for step_test, test in enumerate(test_dataset):
             distributed_test_teacher(test)
+
 
         template = ("Epoch {}, Loss: {}, ACC: {}, Test Loss: {}, Test ACC: {}")
         print(template.format(epoch + 1, loss_metric.result().numpy(), acc_metric.result().numpy(),
