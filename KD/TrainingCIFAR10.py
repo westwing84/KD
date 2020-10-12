@@ -15,7 +15,7 @@ from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 100          # Teacherモデルの学習回数
+EPOCHS_T = 1          # Teacherモデルの学習回数
 EPOCHS_S = 1000          # Studentモデルの学習回数
 BATCH_SIZE_T = 128      # Teacherモデル学習時のバッチサイズ
 BATCH_SIZE_S = 512     # Studentモデル学習時のバッチサイズ
@@ -45,7 +45,6 @@ idx_split = int(x.shape[0] * (1 - validation_split))
 x_train, x_val = np.split(x, [idx_split])
 y_train, y_val = np.split(y, [idx_split])
 input_shape = x_train.shape[1:]
-
 
 '''
 # 入力データの表示
@@ -80,10 +79,9 @@ teacher_model = teacher.createModel(inputs)
 # Teacherモデルの学習
 optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
 history_teacher = LossAccHistory()
-
 '''
 teacher_model.compile(optimizer=optimizer,
-                      loss=CategoricalCrossentropy(from_logits=True),
+                      loss=CategoricalCrossentropy(),
                       metrics=['accuracy'])
 teacher_model.summary()
 teacher_model.fit(x_train, y_train,
@@ -134,6 +132,10 @@ ds_train = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(x_trai
 ds_val = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[0]).batch(BATCH_SIZE_S)
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE_S)
 ds = tf.data.Dataset.zip((ds_train, ds_val))
+
+# Teacherモデルの修正
+teacher_model.layers.pop()
+teacher_model.summary()
 
 # Studentモデルの定義
 student = KDModel.Students(NUM_CLASSES, T)

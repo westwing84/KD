@@ -1,4 +1,4 @@
-# Knowledge Distillation(知識の蒸留)を用いてCIFAR10を小さいモデルに学習
+# StudentモデルをTeacherモデルなしで学習させた場合の検証
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,12 +12,10 @@ from Utils import LossAccHistory
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 200          # Teacherモデルの学習回数
 EPOCHS_S = 1000          # Studentモデルの学習回数
-BATCH_SIZE = 256        # バッチサイズ
+BATCH_SIZE = 512        # バッチサイズ
 T = 2                   # 温度付きソフトマックスの温度
-ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
-LR_T = 0.0001           # Teacherモデル学習時の学習率
+ALPHA = 0             # KD用のLossにおけるSoft Lossの割合(0にすることでTeacherモデルの出力を全く考慮しない)
 LR_S = 0.001            # Studentモデル学習時の学習率
 
 
@@ -97,6 +95,7 @@ with strategy.scope():
     student = KDModel.Students(NUM_CLASSES, T)
     model_T = teacher.createModel(inputs)
     model_S = student.createModel(inputs)
+    model_T.layers.pop()
 
     # optimizer
     optimizer_T = Adam(learning_rate=LR_T)
@@ -235,7 +234,6 @@ with strategy.scope():
 
     # Teacherモデルの学習
     history_teacher = LossAccHistory()
-    model_T.summary()
     for epoch in range(EPOCHS_T):
         # TRAIN LOOP
         total_loss = 0.0
@@ -264,9 +262,11 @@ with strategy.scope():
     print("--------------------Finish Training Teacher--------------------------")
     # checkpoint.restore(manager.latest_checkpoint)
 
+    # Teacherモデルの修正
+    model_T.layers.pop()
+
     # Studentモデルの学習
     history_student = LossAccHistory()
-    model_S.summary()
     for epoch in range(EPOCHS_S):
         # TRAIN LOOP
         total_loss = 0.0
