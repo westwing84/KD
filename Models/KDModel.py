@@ -97,7 +97,7 @@ class Students():
 # Knowledge DistillationのLossおよび勾配計算の定義
 class KnowledgeDistillation():
 
-    def __init__(self, teacher_model, student_model, temperature, alpha):
+    def __init__(self, teacher_model: Model, student_model: Model, temperature, alpha):
         self.teacher_model = teacher_model
         self.student_model = student_model
         self.temperature = temperature
@@ -116,7 +116,7 @@ class KnowledgeDistillation():
     def grad(self, x, targets):
         with tf.GradientTape() as tape:
             loss_value = self.loss(x, targets)
-        return loss_value, tape.gradient(loss_value, self.student_model.trainable_variables)
+        return loss_value, tape.gradient(loss_value, self.student_model.trainable_weights)
 
     @tf.function
     def loss_mainaux(self, x_main, x_aux, y_true):
@@ -131,7 +131,7 @@ class KnowledgeDistillation():
     def grad_mainaux(self, x_main, x_aux, targets):
         with tf.GradientTape() as tape:
             loss_value = self.loss_mainaux(x_main, x_aux, targets)
-        return loss_value, tape.gradient(loss_value, self.student_model.trainable_variables)
+        return loss_value, tape.gradient(loss_value, self.student_model.trainable_weights)
 
 
 # 通常の学習のためのLoss, Grad
@@ -149,4 +149,4 @@ class NormalTraining():
     def grad(self, inputs, targets):
         with tf.GradientTape() as tape:
             loss_value = self.loss(inputs, targets)
-        return loss_value, tape.gradient(loss_value, self.model.trainable_variables)
+        return loss_value, tape.gradient(loss_value, self.model.trainable_weights)

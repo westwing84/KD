@@ -15,7 +15,7 @@ from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 1          # Teacherモデルの学習回数
+EPOCHS_T = 100          # Teacherモデルの学習回数
 EPOCHS_S = 1000          # Studentモデルの学習回数
 BATCH_SIZE_T = 128      # Teacherモデル学習時のバッチサイズ
 BATCH_SIZE_S = 512     # Studentモデル学習時のバッチサイズ
@@ -40,7 +40,7 @@ x = x.reshape([-1, 32, 32, 3])
 x_test = x_test.reshape([-1, 32, 32, 3])
 
 # MNISTのTrain用データをTrainとValidationに分割
-validation_split = 0.2
+validation_split = 0.1
 idx_split = int(x.shape[0] * (1 - validation_split))
 x_train, x_val = np.split(x, [idx_split])
 y_train, y_val = np.split(y, [idx_split])
@@ -94,7 +94,7 @@ teacher_model.fit(x_train, y_train,
 
 training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
-plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
+# plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
 for epoch in range(1, EPOCHS_T + 1):
     loss_metric = Mean()
     loss_metric_val = Mean()
@@ -106,7 +106,7 @@ for epoch in range(1, EPOCHS_T + 1):
     # 各バッチごとに学習
     for (x_train_, y_train_), (x_val_, y_val_) in ds:
         loss_value, grads = training.grad(x_train_, y_train_)
-        optimizer.apply_gradients(zip(grads, teacher_model.trainable_variables))
+        optimizer.apply_gradients(zip(grads, teacher_model.trainable_weights))
         loss_value_test = training.loss(x_val_, y_val_)
         probs = tf.nn.softmax(teacher_model(x_train_))
         probs_val = tf.nn.softmax(teacher_model(x_val_))
@@ -133,10 +133,6 @@ ds_val = tf.data.Dataset.from_tensor_slices((x_val, y_val)).shuffle(x_val.shape[
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(x_test.shape[0]).batch(BATCH_SIZE_S)
 ds = tf.data.Dataset.zip((ds_train, ds_val))
 
-# Teacherモデルの修正
-teacher_model.layers.pop()
-teacher_model.summary()
-
 # Studentモデルの定義
 student = KDModel.Students(NUM_CLASSES, T)
 student_model = student.createModel(inputs)
@@ -158,7 +154,7 @@ for epoch in range(1, EPOCHS_S + 1):
     # 各バッチごとに学習
     for (x_train_, y_train_), (x_val_, y_val_) in ds:
         loss_value, grads = kd.grad(x_train_, y_train_)
-        optimizer.apply_gradients(zip(grads, student_model.trainable_variables))
+        optimizer.apply_gradients(zip(grads, student_model.trainable_weights))
         loss_value_test = kd.loss(x_val_, y_val_)
         probs = tf.nn.softmax(student_model(x_train_))
         probs_val = tf.nn.softmax(student_model(x_val_))
