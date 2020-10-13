@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Dropout, Conv2D, MaxPooling2D,\
     Flatten, concatenate
-from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.losses import CategoricalCrossentropy, KLDivergence
 from Models.Xception import createXception
 from Models.VGG16 import createVGG16
 
@@ -106,10 +106,11 @@ class KnowledgeDistillation():
     @tf.function
     def loss(self, x, y_true):
         loss_object = CategoricalCrossentropy(from_logits=True)
+        loss_dist = KLDivergence()
         teacher_pred = tf.nn.softmax(self.teacher_model(x) / self.temperature)
         logits = self.student_model(x)
         loss_value = ((1 - self.alpha) * loss_object(y_true, logits)) + \
-                     (self.alpha * loss_object(teacher_pred, logits / self.temperature))
+                     (self.alpha * loss_dist(teacher_pred, tf.nn.softmax(logits / self.temperature)))
         return loss_value
 
     @tf.function

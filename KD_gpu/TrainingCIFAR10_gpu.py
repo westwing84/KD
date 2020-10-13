@@ -76,17 +76,16 @@ mc = True
 drop_rate = 0.5
 n_ensemble = 20
 
-
-# checkpoint
-# checkpoint_prefix = "D:\\usr\\pras\\result\\arxiv\\KnowldegeDistillation\\"
-
-# loss
 # ---------------------------Epoch&Loss--------------------------#
 loss_metric = tf.keras.metrics.Mean()
 acc_metric = tf.keras.metrics.Mean()
 test_loss_metric = tf.keras.metrics.Mean()
 test_acc_metric = tf.keras.metrics.Mean()
-# Loss function
+
+# checkpoint
+# checkpoint_prefix = "D:\\usr\\pras\\result\\arxiv\\KnowldegeDistillation\\"
+
+
 with strategy.scope():
     # Set reduction to `none` so we can do the reduction afterwards and divide by
 
@@ -146,7 +145,7 @@ with strategy.scope():
     def test_teacher(inputs):
         x_test = inputs[0]
         y_test = inputs[1]
-        #make sure that the model is in the inference mode
+        # make sure that the model is in the inference mode
         logits_test = model_T(x_test, training=False)
         probs = tf.nn.softmax(logits_test)
         test_loss = loss(y_test, logits_test)
@@ -161,27 +160,6 @@ with strategy.scope():
         x_train = inputs[0]
         y_train = inputs[1]
         with tf.GradientTape() as tape:
-            '''
-            if mc:
-                probs = []
-                for i in range(n_ensemble):
-                    probs.append(tf.expand_dims(tf.nn.softmax(model_T(x_train, training=True) / T), 0))
-                probs_all_test = tf.concat(probs, axis=0)
-                probs_mean = tf.reduce_mean(probs, 0)
-                uncertainty = tf.reduce_mean(tf.reduce_sum((probs_all_test - probs_mean) ** 2, -1), 0)
-                # uncertainty = tf.reduce_sum(tf.reduce_mean((probs_all_test - probs_mean) ** 2, 0), -1)
-                logits = model_S(x_train)
-                probs = tf.nn.softmax(logits)
-                loss = (ALPHA * compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)) + (
-                        (uncertainty) * compute_cross_loss(probs_mean[0], logits / T, GLOBAL_BATCH_SIZE))
-
-            else:
-                teacher_pred = tf.nn.softmax(model_T(x_train) / T)
-                logits = model_S(x_train)
-                probs = tf.nn.softmax(logits)
-                loss = ((1 - ALPHA) * compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)) + (
-                            ALPHA * compute_loss(teacher_pred, logits / T, GLOBAL_BATCH_SIZE))
-            '''
             teacher_pred = tf.nn.softmax(model_T(x_train) / T)
             logits = model_S(x_train)
             probs = tf.nn.softmax(logits)
@@ -239,15 +217,10 @@ with strategy.scope():
     history_teacher = LossAccHistory()
     model_T.summary()
     for epoch in range(EPOCHS_T):
-        # TRAIN LOOP
-        total_loss = 0.0
-        num_batches = 0
-        for step, train in enumerate(train_dataset):
-            total_loss = distributed_train_teacher(train)
-            # print(total_loss)
 
-        # TEST LOOP
-        for step_test, test in enumerate(valid_dataset):
+        # TRAIN LOOP
+        for train, test in zip(train_dataset, test_dataset):
+            distributed_train_teacher(train)
             distributed_test_teacher(test)
 
         template = "Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}"
@@ -257,6 +230,7 @@ with strategy.scope():
         history_teacher.accuracy.append(acc_metric.result().numpy() * 100)
         history_teacher.losses_val.append(test_loss_metric.result().numpy())
         history_teacher.accuracy_val.append(test_acc_metric.result().numpy() * 100)
+
         loss_metric.reset_states()
         acc_metric.reset_states()
         test_loss_metric.reset_states()
@@ -270,16 +244,19 @@ with strategy.scope():
     history_student = LossAccHistory()
     model_S.summary()
     for epoch in range(EPOCHS_S):
+
+        for train, test in zip(train_dataset, test_dataset):
+            distributed_train_student(train)
+            distributed_test_student(test)
+        '''
         # TRAIN LOOP
-        total_loss = 0.0
-        num_batches = 0
         for step, train in enumerate(train_dataset):
             total_loss = distributed_train_student(train)
-            # print(total_loss)
 
         # TEST LOOP
         for step_test, test in enumerate(valid_dataset):
             distributed_test_student(test)
+        '''
 
         template = ("Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}")
         print(template.format(epoch + 1, EPOCHS_S, loss_metric.result().numpy(), acc_metric.result().numpy(),
