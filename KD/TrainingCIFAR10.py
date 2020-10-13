@@ -248,7 +248,11 @@ plt.tight_layout()
 plt.show()
 
 # 結果をcsvに保存
-result = pd.DataFrame({'Train': score_train, 'Validation': score_val, 'Test': score_test},
-                      index=['Loss', 'Accuracy', 'Precision', 'Recall', 'F1-Score'])
+result = pd.DataFrame({'Loss': [score_train[0], score_val[0], score_test[0]],
+                       'Accuracy': [score_train[1], score_val[1], score_test[1]],
+                       'Precision': [score_train[2], score_val[2], score_test[2]],
+                       'Recall': [score_train[3], score_val[3], score_test[3]],
+                       'F1-Score': [score_train[4], score_val[4], score_test[4]]},
+                      index=['Train', 'Validation', 'Test'])
 path = 'result\\KD_result.csv'
 result.to_csv(path)

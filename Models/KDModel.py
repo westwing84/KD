@@ -26,45 +26,6 @@ class Teacher():
         else:
             model = Model([inputs_main, inputs_aux], logits, name='TeacherModel')
 
-        '''
-        x = Conv2D(32, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(32, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(32, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.25)(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
-
-        x = Conv2D(64, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(64, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(64, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.25)(x)
-        x = MaxPooling2D(pool_size=(2, 2))(x)
-
-        x = Conv2D(128, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(128, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Conv2D(128, (3, 3), padding='same')(x)
-        x = Activation('relu')(BatchNormalization()(x))
-        x = Dropout(0.25)(x)
-
-        x = GlobalAveragePooling2D()(x)
-        x = Dense(1024, activation='relu')(x)
-        x = Dropout(0.5)(x)
-        x = Dense(1024, activation='relu')(x)
-        x = Dropout(0.5)(x)
-        logits = Dense(self.num_classes)(x)
-
-        if inputs_aux == None:
-            model = Model(inputs_main, logits, name='TeacherModel')
-        else:
-            model = Model([inputs_main, inputs_aux], logits, name='TeacherModel')
-        '''
         return model
 
 

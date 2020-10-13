@@ -106,19 +106,12 @@ with strategy.scope():
 
     # loss
     loss = tf.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE, from_logits=True)
-    cross_loss = tf.losses.CategoricalCrossentropy(reduction=tf.keras.losses.Reduction.NONE, from_logits=True)
     acc = tf.keras.metrics.CategoricalAccuracy()
 
 
     def compute_loss(labels, predictions, global_batch_size):
         per_example_loss = loss(labels, predictions)
         return tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_batch_size)
-
-
-    def compute_cross_loss(labels, predictions, global_batch_size):
-        per_example_loss = cross_loss(labels, predictions)
-        return tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_batch_size)
-
 
     def compute_acc(labels, predictions):
         return acc(labels, predictions)

@@ -1,6 +1,7 @@
 # Knowledge Distillation(知識の蒸留)を用いずにCIFAR10をStudentモデルに学習
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.layers import Input
@@ -136,17 +137,24 @@ for (x_train_, y_train_), (x_val_, y_val_), (x_test_, y_test_) in ds:
     score_train[3](y_train_, probs_train)
     score_val[3](y_val_, probs_val)
     score_test[3](y_test_, probs_test)
-f1_train = f1_score(score_train[2].result(), score_train[3].result())
-f1_val = f1_score(score_val[2].result(), score_val[3].result())
-f1_test = f1_score(score_test[2].result(), score_test[3].result())
+f1_train = f1_score(score_train[2].result().numpy(), score_train[3].result().numpy())
+f1_val = f1_score(score_val[2].result().numpy(), score_val[3].result().numpy())
+f1_test = f1_score(score_test[2].result().numpy(), score_test[3].result().numpy())
+
+score_train = [score_train[0].result().numpy(), score_train[1].result().numpy(), score_train[2].result().numpy(),
+               score_train[3].result().numpy(), f1_train]
+score_val = [score_val[0].result().numpy(), score_val[1].result().numpy(), score_val[2].result().numpy(),
+             score_val[3].result().numpy(), f1_val]
+score_test = [score_test[0].result().numpy(), score_test[1].result().numpy(), score_test[2].result().numpy(),
+              score_test[3].result().numpy(), f1_test]
 
 print('-----------------------------Student Model------------------------------------')
 print('Train - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_train[0].result(), score_train[1].result(), score_train[2].result(), score_train[3].result(), f1_train))
+    score_train[0], score_train[1], score_train[2], score_train[3], score_train[4]))
 print('Validation - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_val[0].result(), score_val[1].result(), score_val[2].result(), score_val[3].result(), f1_val))
+    score_val[0], score_val[1], score_val[2], score_val[3], score_val[4]))
 print('Test - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_test[0].result(), score_test[1].result(), score_test[2].result(), score_test[3].result(), f1_test))
+    score_test[0], score_test[1], score_test[2], score_test[3], score_test[4]))
 
 # LossとAccuracyをグラフにプロット
 # Studentモデルの学習結果
@@ -171,4 +179,12 @@ plt.tight_layout()
 
 plt.show()
 
-
+# 結果をcsvに保存
+result = pd.DataFrame({'Loss': [score_train[0], score_val[0], score_test[0]],
+                       'Accuracy': [score_train[1], score_val[1], score_test[1]],
+                       'Precision': [score_train[2], score_val[2], score_test[2]],
+                       'Recall': [score_train[3], score_val[3], score_test[3]],
+                       'F1-Score': [score_train[4], score_val[4], score_test[4]]},
+                      index=['Train', 'Validation', 'Test'])
+path = 'result\\no_teacher_result.csv'
+result.to_csv(path)
