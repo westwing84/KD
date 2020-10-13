@@ -1,11 +1,12 @@
 from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Conv2D, MaxPooling2D, Flatten, Dropout
+from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation
 import tensorflow as tf
 
 
 def createVGG16(inputs, num_classes):
 
-    x = tf.keras.layers.experimental.preprocessing.RandomFlip()(inputs)
-    x = tf.keras.layers.experimental.preprocessing.RandomRotation(0.2)(x)
+    x = RandomFlip()(inputs)
+    x = RandomRotation(0.2)(x)
 
     x = Conv2D(64, (3, 3), padding='same')(x)
     x = Activation('relu')(BatchNormalization()(x))

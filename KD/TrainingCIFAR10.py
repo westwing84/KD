@@ -30,7 +30,6 @@ LR_S = 0.001            # Studentモデル学習時の学習率
 def f1_score(precision, recall):
     return (2 * precision * recall) / (precision + recall)
 
-
 # CIFAR10データセットの準備
 (x, y), (x_test, y_test) = cifar10.load_data()
 y = to_categorical(y, NUM_CLASSES)

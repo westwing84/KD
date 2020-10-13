@@ -33,7 +33,7 @@ if gpus:
     # Create 4 virtual GPU
     try:
         i = 0
-        tf.config.experimental.set_visible_devices(gpus[0:-1], 'GPU')
+        tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
         for gpu in gpus[0:-1]:
             tf.config.experimental.set_memory_growth(gpu, True)
             i += 1
