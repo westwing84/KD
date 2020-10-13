@@ -6,7 +6,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, Adamax
 from Models import KDModel
 from Utils import LossAccHistory
 
@@ -61,7 +61,7 @@ x = x.reshape([-1, 32, 32, 3])
 x_test = x_test.reshape([-1, 32, 32, 3])
 
 # MNISTのTrain用データをTrainとValidationに分割
-validation_split = 0.1
+validation_split = 0.2
 idx_split = int(x.shape[0] * (1 - validation_split))
 x_train, x_val = np.split(x, [idx_split])
 y_train, y_val = np.split(y, [idx_split])
@@ -84,7 +84,6 @@ n_ensemble = 20
 # ---------------------------Epoch&Loss--------------------------#
 loss_metric = tf.keras.metrics.Mean()
 acc_metric = tf.keras.metrics.Mean()
-
 test_loss_metric = tf.keras.metrics.Mean()
 test_acc_metric = tf.keras.metrics.Mean()
 # Loss function
@@ -130,7 +129,8 @@ with strategy.scope():
         x_train = inputs[0]
         y_train = inputs[1]
         with tf.GradientTape() as tape:
-            logits = model_T(x_train)
+            # make sure that the model is in the training mode
+            logits = model_T(x_train, training=True)
             probs = tf.nn.softmax(logits)
             loss = compute_loss(y_train, logits, GLOBAL_BATCH_SIZE)
             acc = compute_acc(y_train, probs)
@@ -146,7 +146,8 @@ with strategy.scope():
     def test_teacher(inputs):
         x_test = inputs[0]
         y_test = inputs[1]
-        logits_test = model_T(x_test)
+        #make sure that the model is in the inference mode
+        logits_test = model_T(x_test, training=False)
         probs = tf.nn.softmax(logits_test)
         test_loss = loss(y_test, logits_test)
         test_acc = acc(y_test, probs)
@@ -220,7 +221,8 @@ with strategy.scope():
 
     @tf.function
     def distributed_test_teacher(dataset_inputs):
-        return strategy.run(test_teacher, args=(dataset_inputs,))
+        per_replica_losses = strategy.run(test_teacher, args=(dataset_inputs,))
+        return strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
 
 
     @tf.function
@@ -280,7 +282,7 @@ with strategy.scope():
             distributed_test_student(test)
 
         template = ("Epoch {}/{}: Loss: {:.3f}, Accuracy: {:.3%}, Validation Loss: {:.3f}, Validation Accuracy: {:.3%}")
-        print(template.format(epoch + 1, EPOCHS_T, loss_metric.result().numpy(), acc_metric.result().numpy(),
+        print(template.format(epoch + 1, EPOCHS_S, loss_metric.result().numpy(), acc_metric.result().numpy(),
                               test_loss_metric.result().numpy(), test_acc_metric.result().numpy()))
 
         history_student.losses.append(loss_metric.result().numpy())

@@ -1,6 +1,7 @@
 # Knowledge Distillation(知識の蒸留)を用いてCIFAR10を小さいモデルに学習
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.layers import Input
@@ -79,19 +80,6 @@ teacher_model = teacher.createModel(inputs)
 # Teacherモデルの学習
 optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
 history_teacher = LossAccHistory()
-'''
-teacher_model.compile(optimizer=optimizer,
-                      loss=CategoricalCrossentropy(),
-                      metrics=['accuracy'])
-teacher_model.summary()
-teacher_model.fit(x_train, y_train,
-                  batch_size=BATCH_SIZE_T,
-                  epochs=EPOCHS_T,
-                  verbose=2,
-                  validation_data=(x_val, y_val),
-                  callbacks=[history_teacher])
-'''
-
 training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
 # plot_model(teacher_model, show_shapes=True, to_file='teacher_model.png')
@@ -199,13 +187,21 @@ f1_train = f1_score(score_train[2].result().numpy(), score_train[3].result().num
 f1_val = f1_score(score_val[2].result().numpy(), score_val[3].result().numpy())
 f1_test = f1_score(score_test[2].result().numpy(), score_test[3].result().numpy())
 
+score_train = [score_train[0].result().numpy(), score_train[1].result().numpy(), score_train[2].result().numpy(),
+               score_train[3].result().numpy(), f1_train]
+score_val = [score_val[0].result().numpy(), score_val[1].result().numpy(), score_val[2].result().numpy(),
+             score_val[3].result().numpy(), f1_val]
+score_test = [score_test[0].result().numpy(), score_test[1].result().numpy(), score_test[2].result().numpy(),
+              score_test[3].result().numpy(), f1_test]
+
 print('-----------------------------Student Model------------------------------------')
 print('Train - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_train[0].result().numpy(), score_train[1].result().numpy(), score_train[2].result().numpy(), score_train[3].result().numpy(), f1_train))
+    score_train[0], score_train[1], score_train[2], score_train[3], score_train[4]))
 print('Validation - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_val[0].result().numpy(), score_val[1].result().numpy(), score_val[2].result().numpy(), score_val[3].result().numpy(), f1_val))
+    score_val[0], score_val[1], score_val[2], score_val[3], score_val[4]))
 print('Test - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f}, F1-Score: {:.3f}'.format(
-    score_test[0].result().numpy(), score_test[1].result().numpy(), score_test[2].result().numpy(), score_test[3].result().numpy(), f1_test))
+    score_test[0], score_test[1], score_test[2], score_test[3], score_test[4]))
+
 
 # LossとAccuracyをグラフにプロット
 # Teacherモデルの学習結果
@@ -251,4 +247,8 @@ plt.tight_layout()
 
 plt.show()
 
-
+# 結果をcsvに保存
+result = pd.DataFrame({'Train': score_train, 'Validation': score_val, 'Test': score_test},
+                      index=['Loss', 'Accuracy', 'Precision', 'Recall', 'F1-Score'])
+path = 'result\\KD_result.csv'
+result.to_csv(path)
