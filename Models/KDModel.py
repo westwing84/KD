@@ -18,8 +18,9 @@ class Teacher():
             x = inputs_main
         else:
             x = concatenate([inputs_main, inputs_aux], axis=1)
-        logits = createVGG16(x, self.num_classes)
-        # probs = Activation('softmax')(logits)
+
+        logits = createXception(x, self.num_classes)
+        # logits = createVGG16(x, self.num_classes)
 
         if inputs_aux == None:
             model = Model(inputs_main, logits, name='TeacherModel')

@@ -1,6 +1,5 @@
 from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Conv2D, MaxPooling2D, Flatten, Dropout
 from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation
-import tensorflow as tf
 
 
 def createVGG16(inputs, num_classes):

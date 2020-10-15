@@ -1,11 +1,16 @@
 from tensorflow.keras.layers import Dense, Activation, BatchNormalization, Conv2D, MaxPooling2D,\
     GlobalAveragePooling2D, SeparableConv2D, add
+from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation
 
 
 def createXception(inputs, num_classes):
 
+    # data augmentation
+    x = RandomFlip()(inputs)
+    x = RandomRotation(0.2)(x)
+
     # entry flow
-    x = Conv2D(32, (3, 3), strides=2, padding='same')(inputs)
+    x = Conv2D(32, (3, 3), strides=2, padding='same')(x)
     x = Activation('relu')(BatchNormalization()(x))
     x = Conv2D(64, (3, 3), padding='same')(x)
     x = Activation('relu')(BatchNormalization()(x))

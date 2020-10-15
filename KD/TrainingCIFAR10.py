@@ -9,20 +9,20 @@ from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import Mean, CategoricalAccuracy, Precision, Recall
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, RMSprop
 from tensorflow.python.keras.utils.vis_utils import plot_model
 from Utils import LossAccHistory
 from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 500          # Teacherモデルの学習回数
+EPOCHS_T = 300          # Teacherモデルの学習回数
 EPOCHS_S = 1000          # Studentモデルの学習回数
 BATCH_SIZE_T = 128      # Teacherモデル学習時のバッチサイズ
 BATCH_SIZE_S = 512     # Studentモデル学習時のバッチサイズ
 T = 2                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
-LR_T = 0.0001           # Teacherモデル学習時の学習率
+LR_T = 0.001           # Teacherモデル学習時の学習率
 LR_S = 0.001            # Studentモデル学習時の学習率
 
 
@@ -77,7 +77,7 @@ teacher = KDModel.Teacher(NUM_CLASSES)
 teacher_model = teacher.createModel(inputs)
 
 # Teacherモデルの学習
-optimizer = Adam(learning_rate=LR_T)      # 最適化アルゴリズム
+optimizer = RMSprop(learning_rate=LR_T)      # 最適化アルゴリズム
 history_teacher = LossAccHistory()
 training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
