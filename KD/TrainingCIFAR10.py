@@ -16,7 +16,7 @@ from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 100          # Teacherモデルの学習回数
+EPOCHS_T = 500          # Teacherモデルの学習回数
 EPOCHS_S = 1000          # Studentモデルの学習回数
 BATCH_SIZE_T = 128      # Teacherモデル学習時のバッチサイズ
 BATCH_SIZE_S = 512     # Studentモデル学習時のバッチサイズ
