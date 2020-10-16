@@ -9,16 +9,16 @@ from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import Mean, CategoricalAccuracy, Precision, Recall
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.optimizers import Adam, RMSprop
+from tensorflow.keras.optimizers import Adam, RMSprop, Adamax
 from tensorflow.python.keras.utils.vis_utils import plot_model
 from Utils import LossAccHistory
 from Models import KDModel
 
 # 定数宣言
 NUM_CLASSES = 10        # 分類するクラス数
-EPOCHS_T = 300          # Teacherモデルの学習回数
+EPOCHS_T = 500          # Teacherモデルの学習回数
 EPOCHS_S = 1000          # Studentモデルの学習回数
-BATCH_SIZE_T = 128      # Teacherモデル学習時のバッチサイズ
+BATCH_SIZE_T = 256      # Teacherモデル学習時のバッチサイズ
 BATCH_SIZE_S = 512     # Studentモデル学習時のバッチサイズ
 T = 2                   # 温度付きソフトマックスの温度
 ALPHA = 0.5             # KD用のLossにおけるSoft Lossの割合
@@ -77,7 +77,7 @@ teacher = KDModel.Teacher(NUM_CLASSES)
 teacher_model = teacher.createModel(inputs)
 
 # Teacherモデルの学習
-optimizer = RMSprop(learning_rate=LR_T)      # 最適化アルゴリズム
+optimizer = Adamax(learning_rate=LR_T)      # 最適化アルゴリズム
 history_teacher = LossAccHistory()
 training = KDModel.NormalTraining(teacher_model)
 teacher_model.summary()
@@ -125,7 +125,7 @@ student = KDModel.Students(NUM_CLASSES, T)
 student_model = student.createModel(inputs)
 
 # Studentモデルの学習
-optimizer = Adam(learning_rate=LR_S)      # 最適化アルゴリズム
+optimizer = Adamax(learning_rate=LR_S)      # 最適化アルゴリズム
 student_model.summary()
 # plot_model(student_model, show_shapes=True, to_file='student_model.png')
 kd = KDModel.KnowledgeDistillation(teacher_model, student_model, T, ALPHA)
@@ -204,7 +204,7 @@ print('Test - Loss: {:.3f}, Accuracy: {:.3%}, Precision: {:.3f}, Recall: {:.3f},
 
 # LossとAccuracyをグラフにプロット
 # Teacherモデルの学習結果
-plt.figure()
+plt.figure(figsize=(9, 4))
 plt.subplot(1, 2, 1)
 plt.plot(history_teacher.accuracy)
 plt.plot(history_teacher.accuracy_val)
@@ -220,12 +220,12 @@ plt.plot(history_teacher.losses_val)
 plt.title('Teacher Model Loss')
 plt.ylabel('Loss')
 plt.xlabel('Epoch')
-plt.ylim(0.0, 5.0)
+# plt.ylim(0.0, 5.0)
 plt.legend(['Train', 'Validation'])
 plt.tight_layout()
 
 # Studentモデルの学習結果
-plt.figure()
+plt.figure(figsize=(9, 4))
 plt.subplot(1, 2, 1)
 plt.plot(history_student.accuracy)
 plt.plot(history_student.accuracy_val)
